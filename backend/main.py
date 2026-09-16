@@ -42,50 +42,51 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
             nombre = j["nombre"]
             if nombre not in acumulado:
                 acumulado[nombre] = {
-                    "dorsal": j["dorsal"], 
-                    "nombre": nombre, 
-                    "pj": 0,
-                    "pts": 0, "ro": 0, "rd": 0, "rt": 0, "as": 0, "to": 0,
-                    "st": 0, "bs": 0, "pf": 0, "pm": 0, "ef": 0,
-                    "tc_a": 0, "tc_i": 0, "t2_a": 0, "t2_i": 0,
-                    "t3_a": 0, "t3_i": 0, "tl_a": 0, "tl_i": 0
+                    "dorsal": j["dorsal"], "nombre": nombre, "pj": 0,
+                    "min": 0, "pts": 0, "fgm": 0, "fga": 0, "m2": 0, "a2": 0,
+                    "m3": 0, "a3": 0, "ftm": 0, "fta": 0, "ro": 0, "rd": 0,
+                    "rt": 0, "as": 0, "to": 0, "st": 0, "bs": 0, "pf": 0,
+                    "fd": 0, "pm": 0, "ef": 0
                 }
             
             if j["jugo"]:
                 acumulado[nombre]["pj"] += 1
-                metricas = [
-                    "pts", "ro", "rd", "rt", "as", "to", "st", "bs", 
-                    "pf", "pm", "ef", "tc_a", "tc_i", "t2_a", "t2_i", 
-                    "t3_a", "t3_i", "tl_a", "tl_i"
-                ]
-                for k in metricas:
+                for k in ["min", "pts", "fgm", "fga", "m2", "a2", "m3", "a3", "ftm", "fta", 
+                          "ro", "rd", "rt", "as", "to", "st", "bs", "pf", "fd", "pm", "ef"]:
                     acumulado[nombre][k] += j.get(k, 0)
 
     res = []
     for j in acumulado.values():
         pj = j["pj"] if j["pj"] > 0 else 1
+        
+        # Cálculo de %
+        fg_pct = round((j["fgm"] / j["fga"] * 100), 1) if j["fga"] > 0 else 0
+        p2_pct = round((j["m2"] / j["a2"] * 100), 1) if j["a2"] > 0 else 0
+        p3_pct = round((j["m3"] / j["a3"] * 100), 1) if j["a3"] > 0 else 0
+        ft_pct = round((j["ftm"] / j["fta"] * 100), 1) if j["fta"] > 0 else 0
+
         res.append({
-            "dorsal": j["dorsal"], 
-            "nombre": j["nombre"], 
+            "dorsal": j["dorsal"],
+            "nombre": j["nombre"],
             "pj": j["pj"],
-            "pts_tot": j["pts"], 
+            "min_tot": j["min"],
+            "min_prom": round(j["min"] / pj, 1),
+            "pts_tot": j["pts"],
             "pts_prom": round(j["pts"] / pj, 1),
-            "tc": f"{j['tc_a']}/{j['tc_i']}", 
-            "tc_pct": round((j['tc_a']/j['tc_i']*100), 1) if j['tc_i'] > 0 else 0,
-            "t2": f"{j['t2_a']}/{j['t2_i']}", 
-            "t3": f"{j['t3_a']}/{j['t3_i']}", 
-            "tl": f"{j['tl_a']}/{j['tl_i']}",
-            "rt_tot": j["rt"], 
-            "rt_prom": round(j["rt"] / pj, 1),
-            "as_tot": j["as"], 
-            "as_prom": round(j["as"] / pj, 1),
-            "to_tot": j["to"], 
-            "st_tot": j["st"], 
-            "bs_tot": j["bs"],
-            "pf_tot": j["pf"], 
-            "pm_tot": j["pm"], 
-            "ef_tot": j["ef"], 
-            "ef_prom": round(j["ef"] / pj, 1)
+            "fgm": j["fgm"], "fga": j["fga"], "fg_pct": fg_pct,
+            "m2": j["m2"], "a2": j["a2"], "p2_pct": p2_pct,
+            "m3": j["m3"], "a3": j["a3"], "p3_pct": p3_pct,
+            "ftm": j["ftm"], "fta": j["fta"], "ft_pct": ft_pct,
+            "ro": j["ro"], "rd": j["rd"],
+            "rt_tot": j["rt"], "rt_prom": round(j["rt"] / pj, 1),
+            "as_tot": j["as"], "as_prom": round(j["as"] / pj, 1),
+            "to_tot": j["to"], "to_prom": round(j["to"] / pj, 1),
+            "st_tot": j["st"], "st_prom": round(j["st"] / pj, 1),
+            "bs_tot": j["bs"], "bs_prom": round(j["bs"] / pj, 1),
+            "pf_tot": j["pf"],
+            "fd_tot": j["fd"],
+            "pm_tot": j["pm"], "pm_prom": round(j["pm"] / pj, 1),
+            "ef_tot": j["ef"], "ef_prom": round(j["ef"] / pj, 1)
         })
 
     return {"partidos_procesados": total_partidos, "jugadoras": res}
