@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba Carga FIBA - TDA</title>
+</head>
+<body>
+    <h2>Subir Partidos FIBA (TDA)</h2>
+    <input type="file" id="pdfInput" multiple accept=".pdf">
+    <button onclick="subirArchivos()">Procesar Partidos</button>
+
+    <pre id="resultado"></pre>
+
+    <script>
+        async function subirArchivos() {
+            const input = document.getElementById('pdfInput');
+            if (input.files.length === 0) return alert("Selecciona al menos un archivo");
+
+            const formData = new FormData();
+            for (let i = 0; i < input.files.length; i++) {
+                formData.append('files', input.files[i]);
+            }
+
+            const res = await fetch('http://127.0.0.1:8000/procesar-partidos/', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            document.getElementById('resultado').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
