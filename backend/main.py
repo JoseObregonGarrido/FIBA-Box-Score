@@ -3,14 +3,12 @@ import shutil
 from typing import List
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from extractor import extraer_datos_completos_tda
 
-# Forzamos Swagger a interpretar archivos correctamente especificando el schema
-app = FastAPI(
-    title="FIBA Box Score API - TDA",
-    openapi_version="3.0.2"
-)
+app = FastAPI(title="FIBA Box Score API - TDA")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,9 +21,11 @@ app.add_middleware(
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@app.get("/")
-def home():
-    return {"message": "API FIBA Box Score TDA activa"}
+@app.get("/", response_class=HTMLResponse)
+def leer_interfaz():
+    ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
+    with open(ruta_html, "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/procesar-partidos/")
 async def procesar_partidos(files: List[UploadFile] = File(...)):

@@ -2,32 +2,71 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Prueba Carga FIBA - TDA</title>
+    <title>Analizador FIBA - TDA</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
 <body>
-    <h2>Subir Partidos FIBA (TDA)</h2>
+    <h2>Cargar Partidos FIBA (TDA)</h2>
     <input type="file" id="pdfInput" multiple accept=".pdf">
     <button onclick="subirArchivos()">Procesar Partidos</button>
 
-    <pre id="resultado"></pre>
+    <h3 id="info"></h3>
+    <div id="tablaContenedor"></div>
 
     <script>
         async function subirArchivos() {
             const input = document.getElementById('pdfInput');
-            if (input.files.length === 0) return alert("Selecciona al menos un archivo");
+            if (input.files.length === 0) return alert("Selecciona al menos un archivo PDF");
+
+            document.getElementById('info').textContent = "Procesando...";
 
             const formData = new FormData();
             for (let i = 0; i < input.files.length; i++) {
                 formData.append('files', input.files[i]);
             }
 
-            const res = await fetch('http://127.0.0.1:8000/procesar-partidos/', {
-                method: 'POST',
-                body: formData
-            });
+            try {
+                const res = await fetch('/procesar-partidos/', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            const data = await res.json();
-            document.getElementById('resultado').textContent = JSON.stringify(data, null, 2);
+                const data = await res.json();
+                document.getElementById('info').textContent = `Partidos procesados: ${data.partidos_procesados}`;
+                
+                let html = `<table>
+                    <tr>
+                        <th>Dorsal</th>
+                        <th>Nombre</th>
+                        <th>PJ</th>
+                        <th>Puntos Totales</th>
+                        <th>Promedio Pts</th>
+                        <th>Eficiencia Total</th>
+                        <th>Promedio Efic</th>
+                    </tr>`;
+
+                data.jugadoras.forEach(j => {
+                    html += `<tr>
+                        <td>${j.dorsal}</td>
+                        <td>${j.nombre}</td>
+                        <td>${j.partidos_jugados}</td>
+                        <td>${j.puntos_totales}</td>
+                        <td>${j.promedio_puntos}</td>
+                        <td>${j.eficiencia_total}</td>
+                        <td>${j.promedio_eficiencia}</td>
+                    </tr>`;
+                });
+
+                html += '</table>';
+                document.getElementById('tablaContenedor').innerHTML = html;
+            } catch (err) {
+                document.getElementById('info').textContent = "Error al procesar los archivos";
+            }
         }
     </script>
 </body>
