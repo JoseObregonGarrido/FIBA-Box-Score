@@ -42,7 +42,9 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
             nombre = j["nombre"]
             if nombre not in acumulado:
                 acumulado[nombre] = {
-                    "dorsal": j["dorsal"], "nombre": nombre, "pj": 0,
+                    "dorsal": j["dorsal"], 
+                    "nombre": nombre, 
+                    "pj": 0,
                     "pts": 0, "ro": 0, "rd": 0, "rt": 0, "as": 0, "to": 0,
                     "st": 0, "bs": 0, "pf": 0, "pm": 0, "ef": 0,
                     "tc_a": 0, "tc_i": 0, "t2_a": 0, "t2_i": 0,
@@ -51,21 +53,39 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
             
             if j["jugo"]:
                 acumulado[nombre]["pj"] += 1
-                for k in ["pts", "ro", "rd", "rt", "as", "to", "st", "bs", "pf", "pm", "ef", "tc_a", "tc_i", "t2_a", "t2_i", "t3_a", "t3_i", "tl_a", "tl_i"]:
-                    acumulado[nombre][k] += j[k]
+                metricas = [
+                    "pts", "ro", "rd", "rt", "as", "to", "st", "bs", 
+                    "pf", "pm", "ef", "tc_a", "tc_i", "t2_a", "t2_i", 
+                    "t3_a", "t3_i", "tl_a", "tl_i"
+                ]
+                for k in metricas:
+                    acumulado[nombre][k] += j.get(k, 0)
 
     res = []
     for j in acumulado.values():
         pj = j["pj"] if j["pj"] > 0 else 1
         res.append({
-            "dorsal": j["dorsal"], "nombre": j["nombre"], "pj": j["pj"],
-            "pts_tot": j["pts"], "pts_prom": round(j["pts"] / pj, 1),
-            "tc": f"{j['tc_a']}/{j['tc_i']}", "tc_pct": round((j['tc_a']/j['tc_i']*100), 1) if j['tc_i'] > 0 else 0,
-            "t2": f"{j['t2_a']}/{j['t2_i']}", "t3": f"{j['t3_a']}/{j['t3_i']}", "tl": f"{j['tl_a']}/{j['tl_i']}",
-            "rt_tot": j["rt"], "rt_prom": round(j["rt"] / pj, 1),
-            "as_tot": j["as"], "as_prom": round(j["as"] / pj, 1),
-            "to_tot": j["to"], "st_tot": j["st"], "bs_tot": j["bs"],
-            "pf_tot": j["pf"], "pm_tot": j["pm"], "ef_tot": j["ef"], "ef_prom": round(j["ef"] / pj, 1)
+            "dorsal": j["dorsal"], 
+            "nombre": j["nombre"], 
+            "pj": j["pj"],
+            "pts_tot": j["pts"], 
+            "pts_prom": round(j["pts"] / pj, 1),
+            "tc": f"{j['tc_a']}/{j['tc_i']}", 
+            "tc_pct": round((j['tc_a']/j['tc_i']*100), 1) if j['tc_i'] > 0 else 0,
+            "t2": f"{j['t2_a']}/{j['t2_i']}", 
+            "t3": f"{j['t3_a']}/{j['t3_i']}", 
+            "tl": f"{j['tl_a']}/{j['tl_i']}",
+            "rt_tot": j["rt"], 
+            "rt_prom": round(j["rt"] / pj, 1),
+            "as_tot": j["as"], 
+            "as_prom": round(j["as"] / pj, 1),
+            "to_tot": j["to"], 
+            "st_tot": j["st"], 
+            "bs_tot": j["bs"],
+            "pf_tot": j["pf"], 
+            "pm_tot": j["pm"], 
+            "ef_tot": j["ef"], 
+            "ef_prom": round(j["ef"] / pj, 1)
         })
 
     return {"partidos_procesados": total_partidos, "jugadoras": res}
