@@ -1,12 +1,16 @@
 import os
 import shutil
-from typing import List, Annotated
+from typing import List
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 from extractor import extraer_datos_completos_tda
 
-app = FastAPI(title="FIBA Box Score API - TDA", version="0.1.0")
+# Forzamos Swagger a interpretar archivos correctamente especificando el schema
+app = FastAPI(
+    title="FIBA Box Score API - TDA",
+    openapi_version="3.0.2"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,9 +28,7 @@ def home():
     return {"message": "API FIBA Box Score TDA activa"}
 
 @app.post("/procesar-partidos/")
-async def procesar_partidos(
-    files: Annotated[List[UploadFile], File(description="Subir PDFs de FIBA Box Score")]
-):
+async def procesar_partidos(files: List[UploadFile] = File(...)):
     acumulado_jugadoras = {}
     total_partidos = len(files)
 
