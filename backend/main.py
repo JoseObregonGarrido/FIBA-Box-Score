@@ -39,27 +39,35 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
         datos = extraer_datos_completos_tda(ruta_temporal)
         
         for j in datos:
-            nombre = j["nombre"]
-            if nombre not in acumulado:
-                acumulado[nombre] = {
-                    "dorsal": j["dorsal"], "nombre": nombre, "pj": 0,
+            dorsal = j["dorsal"]
+            
+            if dorsal not in acumulado:
+                acumulado[dorsal] = {
+                    "dorsal": dorsal, 
+                    "nombre": j["nombre"], 
+                    "pj": 0,
                     "min": 0, "pts": 0, "fgm": 0, "fga": 0, "m2": 0, "a2": 0,
                     "m3": 0, "a3": 0, "ftm": 0, "fta": 0, "ro": 0, "rd": 0,
                     "rt": 0, "as": 0, "to": 0, "st": 0, "bs": 0, "pf": 0,
                     "fd": 0, "pm": 0, "ef": 0
                 }
+            else:
+                # Si en algún partido posterior tiene un nombre más completo/con capitana, actualizamos el nombre a mostrar
+                if len(j["nombre"]) > len(acumulado[dorsal]["nombre"]):
+                    acumulado[dorsal]["nombre"] = j["nombre"]
             
             if j["jugo"]:
-                acumulado[nombre]["pj"] += 1
+                acumulado[dorsal]["pj"] += 1
                 for k in ["min", "pts", "fgm", "fga", "m2", "a2", "m3", "a3", "ftm", "fta", 
                           "ro", "rd", "rt", "as", "to", "st", "bs", "pf", "fd", "pm", "ef"]:
-                    acumulado[nombre][k] += j.get(k, 0)
+                    acumulado[dorsal][k] += j.get(k, 0)
 
     res = []
-    for j in acumulado.values():
+    # Ordenar por número de dorsal numéricamente
+    for dorsal in sorted(acumulado.keys(), key=lambda x: int(x) if x.isdigit() else 99):
+        j = acumulado[dorsal]
         pj = j["pj"] if j["pj"] > 0 else 1
         
-        # Cálculo de %
         fg_pct = round((j["fgm"] / j["fga"] * 100), 1) if j["fga"] > 0 else 0
         p2_pct = round((j["m2"] / j["a2"] * 100), 1) if j["a2"] > 0 else 0
         p3_pct = round((j["m3"] / j["a3"] * 100), 1) if j["a3"] > 0 else 0

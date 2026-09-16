@@ -2,12 +2,12 @@ import pdfplumber
 
 def parse_int(val):
     try:
-        return int(str(val).replace("*", "").strip())
+        clean_val = str(val).replace("*", "").strip()
+        return int(clean_val)
     except (ValueError, TypeError):
         return 0
 
 def parse_minutos(val):
-    """Extrae minutos numéricos ignorando segundos si los hay (ej: '25:30' -> 25)"""
     try:
         str_val = str(val).strip()
         if ":" in str_val:
@@ -17,7 +17,6 @@ def parse_minutos(val):
         return 0
 
 def parse_intentos_convertidos(val):
-    """Separa convertidos e intentados de formatos tipo '3/9'"""
     try:
         partes = str(val).split('/')
         if len(partes) == 2:
@@ -34,26 +33,31 @@ def extraer_datos_completos_tda(ruta_pdf):
         tablas = pagina.extract_tables()
         
         for tabla in tablas:
-            es_tabla_tda = any("MARIA BEDOYA" in str(fila) for fila in tabla)
+            texto_tabla = str(tabla).upper()
+            
+            # Detección dinámica del equipo TDA (sin importar las jugadoras)
+            es_tabla_tda = "TECNOLOGICO DE ANTIOQUIA" in texto_tabla or "TECNOLÓGICO DE ANTIOQUIA" in texto_tabla or "TDA" in texto_tabla
+            
             if es_tabla_tda:
                 for fila in tabla:
                     fila_limpia = [str(e).strip() for e in fila if e is not None and str(e).strip() != ""]
                     texto_fila = " ".join(fila_limpia)
                     
-                    if not fila_limpia or "Totals" in texto_fila or "Team/Coach" in texto_fila:
+                    # Ignorar filas de encabezados, totales y cuerpo técnico
+                    if not fila_limpia or "Totals" in texto_fila or "Totales" in texto_fila or "Team/Coach" in texto_fila or "Equipo/Entrenador" in texto_fila:
                         continue
-                    if "Envigado" in texto_fila or "ENV" in fila_limpia[0]:
-                        break
-                    
+                        
                     if len(fila_limpia) >= 3:
                         dorsal_raw = fila_limpia[0].replace("*", "").strip()
                         if not dorsal_raw.isdigit():
                             continue
                             
+                        # Mantenemos el nombre intacto (incluyendo (C) si aplica)
                         nombre = fila_limpia[1]
                         min_raw = fila_limpia[2]
                         
-                        if "DNP" in min_raw:
+                        # Si no jugó (DNP o NJ)
+                        if "DNP" in min_raw or "NJ" in min_raw or "NE" in min_raw:
                             jugadores_tda.append({
                                 "dorsal": dorsal_raw, "nombre": nombre, "jugo": False,
                                 "min": 0, "pts": 0, "fgm": 0, "fga": 0, "m2": 0, "a2": 0,
@@ -75,8 +79,8 @@ def extraer_datos_completos_tda(ruta_pdf):
                                 "pts": parse_int(fila_limpia[-1]),
                                 "ef": parse_int(fila_limpia[-2]) if len(fila_limpia) >= 2 else 0,
                                 "pm": parse_int(fila_limpia[-3]) if len(fila_limpia) >= 3 else 0,
-                                "fd": parse_int(fila_limpia[-4]) if len(fila_limpia) >= 4 else 0, # Faltas Recibidas
-                                "pf": parse_int(fila_limpia[-5]) if len(fila_limpia) >= 5 else 0, # Faltas Cometidas
+                                "fd": parse_int(fila_limpia[-4]) if len(fila_limpia) >= 4 else 0,
+                                "pf": parse_int(fila_limpia[-5]) if len(fila_limpia) >= 5 else 0,
                                 "bs": parse_int(fila_limpia[-6]) if len(fila_limpia) >= 6 else 0,
                                 "st": parse_int(fila_limpia[-7]) if len(fila_limpia) >= 7 else 0,
                                 "to": parse_int(fila_limpia[-8]) if len(fila_limpia) >= 8 else 0,
