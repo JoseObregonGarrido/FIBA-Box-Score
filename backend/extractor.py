@@ -1,72 +1,68 @@
 import pdfplumber
-import re
 import json
+
+def convertir_a_entero(valor):
+    """Convierte un valor a entero de forma segura."""
+    try:
+        return int(valor)
+    except (ValueError, TypeError):
+        return 0
 
 def extraer_datos_completos_tda(ruta_pdf):
     jugadores_tda = []
     
     with pdfplumber.open(ruta_pdf) as pdf:
-        texto_pagina = pdf.pages[0].extract_text()
+        pagina = pdf.pages[0]
+        tablas = pagina.extract_tables()
         
-        # Cortamos el texto para tomar solo la sección de TDA (antes de Envigado)
-        if "Envigado" in texto_pagina:
-            texto_tda = texto_pagina.split("Envigado")[0]
-        else:
-            texto_tda = texto_pagina
-
-        # Patrón para capturar jugadoras con minutos jugados
-        # Ejemplo: *4 MARIA BEDOYA 21:15 3/9 33.3 0/3 0,0 3/6 50,0 3/4 75.0 1 4 12 2 21 1 1 0 5 12
-        patron_jugador = re.compile(
-            r'(\*?\d+)\s+([A-Za-zÁÉÍÓÚáéíóúÑñ\s\(\)]+?)\s+(\d{2}:\d{2})\s+([\d/]+)\s+[\d,\.]+\s+([\d/]+)\s+[\d,\.]+\s+([\d/]+)\s+[\d,\.]+\s+([\d/]+)\s+[\d,\.]+\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(-?\d+)\s+(\d+)'
-        )
-
-        for linea in texto_tda.split("\n"):
-            coincidencia = patron_jugador.search(linea)
-            if coincidencia:
-                g = coincidencia.groups()
-                jugadores_tda.append({
-                    "dorsal": g[0].replace("*", "").strip(),
-                    "nombre": g[1].strip(),
-                    "minutos": g[2],
-                    "tiros_campo": g[3],
-                    "tiros_2p": g[4],
-                    "tiros_3p": g[5],
-                    "tiros_libres": g[6],
-                    "rebotes_ofensivos": int(g[7]),
-                    "rebotes_defensivos": int(g[8]),
-                    "asistencias": int(g[9]),
-                    "perdidas": int(g[10]),
-                    "robos": int(g[11]),
-                    "tapones": int(g[12]),
-                    "faltas_cometidas": int(g[13]),
-                    "mas_menos": int(g[14]),
-                    "eficiencia": int(g[15]),
-                    "puntos": int(g[16]),
-                    "jugo": True
-                })
-            elif "DNP" in linea and any(c.isdigit() for c in linea[:5]):
-                # Jugadora que no jugó (DNP)
-                partes = linea.split()
-                jugadores_tda.append({
-                    "dorsal": partes[0].replace("*", "").strip(),
-                    "nombre": " ".join(partes[1:-1]),
-                    "minutos": "00:00",
-                    "tiros_campo": "0/0",
-                    "tiros_2p": "0/0",
-                    "tiros_3p": "0/0",
-                    "tiros_libres": "0/0",
-                    "rebotes_ofensivos": 0,
-                    "rebotes_defensivos": 0,
-                    "asistencias": 0,
-                    "perdidas": 0,
-                    "robos": 0,
-                    "tapones": 0,
-                    "faltas_cometidas": 0,
-                    "mas_menos": 0,
-                    "eficiencia": 0,
-                    "puntos": 0,
-                    "jugo": False
-                })
+        for tabla in tablas:
+            # Buscamos la tabla que contenga jugadoras de TDA
+            es_tabla_tda = any("MARIA BEDOYA" in str(fila) for fila in tabla)
+            
+            if es_tabla_tda:
+                for fila in tabla:
+                    # Limpiamos elementos nulos
+                    fila_limpia = [str(e).strip() for e in fila if e is not None and str(e).strip() != ""]
+                    
+                    texto_fila = " ".join(fila_limpia)
+                    
+                    # Ignoramos encabezados y totales
+                    if not fila_limpia or "Name" in texto_fila or "Totals" in texto_fila or "Team/Coach" in texto_fila:
+                        continue
+                    
+                    # Si llegamos a Envigado, detenemos la lectura
+                    if "Envigado" in texto_fila or "ENV" in fila_limpia[0]:
+                        break
+                    
+                    if len(fila_limpia) >= 3:
+                        dorsal = fila_limpia[0].replace("*", "").strip()
+                        nombre = fila_limpia[1]
+                        minutos = fila_limpia[2]
+                        
+                        # Manejo de jugadoras que no jugaron
+                        if "DNP" in minutos:
+                            jugadores_tda.append({
+                                "dorsal": dorsal,
+                                "nombre": nombre,
+                                "minutos": "00:00",
+                                "puntos": 0,
+                                "eficiencia": 0,
+                                "jugo": False
+                            })
+                        else:
+                            # Tomamos los puntos (última columna) y eficiencia (penúltima)
+                            puntos = convertir_a_entero(fila_limpia[-1])
+                            eficiencia = convertir_a_entero(fila_limpia[-2]) if len(fila_limpia) > 3 else 0
+                            
+                            jugadores_tda.append({
+                                "dorsal": dorsal,
+                                "nombre": nombre,
+                                "minutos": minutos,
+                                "puntos": puntos,
+                                "eficiencia": eficiencia,
+                                "jugo": True
+                            })
+                break
 
     return jugadores_tda
 
