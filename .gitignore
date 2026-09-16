@@ -179,3 +179,24 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Entornos virtuales de Python
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Variables de entorno
+.env
+
+# Frontend (Node/React)
+node_modules/
+dist/
+build/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Carpeta temporal para los PDF subidos (opcional, para que no se suban los PDF a GitHub)
+backend/uploads/
