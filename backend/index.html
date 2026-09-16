@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDA Analytics - FIBA Box Score Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Librería para exportar a Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --tda-green: #00875a;
@@ -16,6 +18,8 @@
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
+            --danger-red: #ef4444;
+            --danger-bg: #fef2f2;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,6 +43,9 @@
         
         .btn-process { background: var(--tda-green); color: white; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 135, 90, 0.25); }
         .btn-process:hover { background: var(--tda-green-hover); transform: translateY(-1px); }
+
+        .btn-excel { background: #16a34a; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; display: none; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); }
+        .btn-excel:hover { background: #15803d; transform: translateY(-1px); }
 
         /* Status & Partidos */
         .status-box { margin-top: 15px; font-size: 13px; color: var(--text-muted); }
@@ -67,6 +74,9 @@
         .dorsal-tag { background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 12px; }
         .highlight-cell { font-weight: 800; color: var(--tda-green); }
         .badge-pj { background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+
+        /* Estilo para eficiencias negativas */
+        .ef-negativa { color: var(--danger-red) !important; font-weight: 800; background-color: var(--danger-bg); border-radius: 4px; padding: 2px 6px; }
     </style>
 </head>
 <body>
@@ -89,6 +99,7 @@
             </label>
             <input type="file" id="pdfInput" multiple accept=".pdf" onchange="actualizarNombresArchivos()">
             <button class="btn-process" onclick="subirArchivos()">⚡ Procesar Partidos</button>
+            <button id="btnExportarExcel" class="btn-excel" onclick="exportarAExcel()">📥 Descargar Excel</button>
         </div>
 
         <div class="status-box">
@@ -214,11 +225,16 @@
                 document.getElementById('topEfVal').textContent = `${topEf.ef_prom} de eficiencia promedio`;
 
                 document.getElementById('highlights').style.display = 'grid';
+                document.getElementById('btnExportarExcel').style.display = 'inline-flex';
             }
 
             // Renderizar Tabla
             let html = '';
             data.jugadoras.forEach(j => {
+                // Validación para clase roja en Eficiencia si es negativa
+                const efTotClass = j.ef_tot < 0 ? 'ef-negativa' : 'highlight-cell';
+                const efPromClass = j.ef_prom < 0 ? 'ef-negativa' : '';
+
                 html += `<tr>
                     <td><span class="dorsal-tag">${j.dorsal}</span></td>
                     <td class="player-name">${j.nombre}</td>
@@ -255,8 +271,8 @@
                     <td>${j.fd_tot}</td>
                     <td>${j.pm_tot}</td>
                     <td>${j.pm_prom}</td>
-                    <td class="highlight-cell">${j.ef_tot}</td>
-                    <td><b>${j.ef_prom}</b></td>
+                    <td><span class="${efTotClass}">${j.ef_tot}</span></td>
+                    <td><span class="${efPromClass}">${j.ef_prom}</span></td>
                 </tr>`;
             });
 
@@ -265,6 +281,12 @@
         } catch (err) {
             document.getElementById('statusText').textContent = "❌ Error al procesar los archivos PDF.";
         }
+    }
+
+    function exportarAExcel() {
+        const tabla = document.getElementById('tablaEstadisticas');
+        const wb = XLSX.utils.table_to_book(tabla, { sheet: "Estadisticas TDA" });
+        XLSX.writeFile(wb, "Reporte_Estadistico_TDA.xlsx");
     }
 </script>
 
