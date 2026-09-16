@@ -1,17 +1,32 @@
-from fastapi import FastAPI, UploadFile, File
-from typing import List
 import os
 import shutil
+from typing import List, Annotated
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 
 from extractor import extraer_datos_completos_tda
 
-app = FastAPI(title="FIBA Box Score API - TDA")
+app = FastAPI(title="FIBA Box Score API - TDA", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+@app.get("/")
+def home():
+    return {"message": "API FIBA Box Score TDA activa"}
+
 @app.post("/procesar-partidos/")
-async def procesar_partidos(files: List[UploadFile] = File(...)):
+async def procesar_partidos(
+    files: Annotated[List[UploadFile], File(description="Subir PDFs de FIBA Box Score")]
+):
     acumulado_jugadoras = {}
     total_partidos = len(files)
 
