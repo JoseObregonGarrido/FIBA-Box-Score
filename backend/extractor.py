@@ -4,38 +4,47 @@ import json
 def extraer_datos_tda(ruta_pdf):
     jugadores_tda = []
     
+    # Textos que queremos ignorar completamente por ser encabezados o basura
+    palabras_basura = ["Name", "M/A", "%", "Totals", "Team/Coach", "Scoring", "Field", "Points", "Free", "Rebounds", "Fouls"]
+    
     with pdfplumber.open(ruta_pdf) as pdf:
         pagina = pdf.pages[0]
         tablas = pagina.extract_tables()
         
         for tabla in tablas:
-            # Buscamos si esta tabla corresponde al plantel de jugadoras
+            # Verificamos si es la tabla de jugadoras (donde aparece MARIA BEDOYA)
             es_tabla_jugadores = any("MARIA BEDOYA" in str(fila) for fila in tabla)
             
             if es_tabla_jugadores:
                 for fila in tabla:
-                    # Filtramos elementos vacíos
-                    fila_limpia = [str(elem).strip() for elem in fila if elem is not None and str(elem).strip() != ""]
+                    # Unimos toda la fila como texto para validar filtros
+                    texto_fila = " ".join([str(e) for e in fila if e is not None])
                     
-                    # Ignoramos encabezados o filas de totales
-                    if not fila_limpia or "Name" in fila_limpia or "Totals" in fila_limpia or "Team/Coach" in fila_limpia:
+                    # Ignoramos la fila si no tiene contenido o si contiene palabras clave de los encabezados
+                    if not texto_fila.strip() or any(palabra in texto_fila for palabra in palabras_basura):
                         continue
                     
-                    # Estructura típica de jugadora TDA: ['*4', 'MARIA BEDOYA', '21:15', ...]
+                    # Limpiamos los elementos individuales de la fila
+                    fila_limpia = [str(elem).strip() for elem in fila if elem is not None and str(elem).strip() != ""]
+                    
+                    # Una fila válida de jugadora tiene al menos Dorsal, Nombre y Minutos
                     if len(fila_limpia) >= 3:
-                        # Si encontramos la fila de Envigado o un corte, detenemos
+                        # Si llegamos a la sección del otro equipo (Envigado), paramos
                         if "Envigado" in fila_limpia[0] or "ENV" in fila_limpia[0]:
                             break
-                            
+                        
+                        # Extraemos los datos completos del Box Score
                         jugador = {
                             "dorsal": fila_limpia[0],
                             "nombre": fila_limpia[1],
-                            "minutos": fila_limpia[2] if len(fila_limpia) > 2 else "",
+                            "minutos": fila_limpia[2] if len(fila_limpia) > 2 else "00:00",
                             "puntos": fila_limpia[-1] if len(fila_limpia) > 0 else "0"
                         }
-                        jugadores_tda.append(jugador)
+                        
+                        # Solo agregamos si el dorsal no es un encabezado suelto
+                        if jugador["dorsal"] not in ["No", "M/A", "%"]:
+                            jugadores_tda.append(jugador)
                 
-                # Al terminar la tabla de TDA, salimos del ciclo
                 break
 
     return jugadores_tda
