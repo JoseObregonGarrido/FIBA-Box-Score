@@ -52,7 +52,6 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
                     "fd": 0, "pm": 0, "ef": 0
                 }
             else:
-                # Si en algún partido posterior tiene un nombre más completo/con capitana, actualizamos el nombre a mostrar
                 if len(j["nombre"]) > len(acumulado[dorsal]["nombre"]):
                     acumulado[dorsal]["nombre"] = j["nombre"]
             
@@ -63,7 +62,6 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
                     acumulado[dorsal][k] += j.get(k, 0)
 
     res = []
-    # Ordenar por número de dorsal numéricamente
     for dorsal in sorted(acumulado.keys(), key=lambda x: int(x) if x.isdigit() else 99):
         j = acumulado[dorsal]
         pj = j["pj"] if j["pj"] > 0 else 1

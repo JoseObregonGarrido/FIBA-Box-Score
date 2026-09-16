@@ -33,18 +33,20 @@ def extraer_datos_completos_tda(ruta_pdf):
         tablas = pagina.extract_tables()
         
         for tabla in tablas:
-            texto_tabla = str(tabla).upper()
+            texto_tabla = " ".join([str(celda) for fila in tabla for celda in fila if celda]).upper()
             
-            # Detección dinámica del equipo TDA (sin importar las jugadoras)
-            es_tabla_tda = "TECNOLOGICO DE ANTIOQUIA" in texto_tabla or "TECNOLÓGICO DE ANTIOQUIA" in texto_tabla or "TDA" in texto_tabla
+            # Reconoce la tabla si tiene nombres clave de la nómina de TDA o marcas institucionales
+            es_tabla_tda = any(k in texto_tabla for k in [
+                "MARIA BEDOYA", "BEDOYA", "YULIANY PAZ", "YULIANI PAZ", 
+                "VALENTINA MARIN", "TECNOLOGICO DE ANTIOQUIA", "TECNOLÓGICO DE ANTIOQUIA", "TDA"
+            ])
             
             if es_tabla_tda:
                 for fila in tabla:
                     fila_limpia = [str(e).strip() for e in fila if e is not None and str(e).strip() != ""]
                     texto_fila = " ".join(fila_limpia)
                     
-                    # Ignorar filas de encabezados, totales y cuerpo técnico
-                    if not fila_limpia or "Totals" in texto_fila or "Totales" in texto_fila or "Team/Coach" in texto_fila or "Equipo/Entrenador" in texto_fila:
+                    if not fila_limpia or "TOTALS" in texto_fila.upper() or "TOTALES" in texto_fila.upper() or "TEAM/COACH" in texto_fila.upper() or "EQUIPO/ENTRENADOR" in texto_fila.upper():
                         continue
                         
                     if len(fila_limpia) >= 3:
@@ -52,12 +54,10 @@ def extraer_datos_completos_tda(ruta_pdf):
                         if not dorsal_raw.isdigit():
                             continue
                             
-                        # Mantenemos el nombre intacto (incluyendo (C) si aplica)
                         nombre = fila_limpia[1]
                         min_raw = fila_limpia[2]
                         
-                        # Si no jugó (DNP o NJ)
-                        if "DNP" in min_raw or "NJ" in min_raw or "NE" in min_raw:
+                        if "DNP" in min_raw.upper() or "NJ" in min_raw.upper() or "NE" in min_raw.upper():
                             jugadores_tda.append({
                                 "dorsal": dorsal_raw, "nombre": nombre, "jugo": False,
                                 "min": 0, "pts": 0, "fgm": 0, "fga": 0, "m2": 0, "a2": 0,
