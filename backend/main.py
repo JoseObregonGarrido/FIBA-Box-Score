@@ -1,28 +1,14 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-import shutil
 import os
+import shutil
 
 from extractor import extraer_datos_completos_tda
 
 app = FastAPI(title="FIBA Box Score API - TDA")
 
-# Permitir peticiones desde el frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-@app.get("/")
-def home():
-    return {"message": "API FIBA Box Score TDA funcionando correctamente"}
 
 @app.post("/procesar-partidos/")
 async def procesar_partidos(files: List[UploadFile] = File(...)):
@@ -32,14 +18,11 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
     for file in files:
         ruta_temporal = os.path.join(UPLOAD_DIR, file.filename)
         
-        # Guardar archivo localmente en uploads/
         with open(ruta_temporal, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        # Extraer datos de TDA para este PDF
         datos_partido = extraer_datos_completos_tda(ruta_temporal)
         
-        # Consolidar estadísticas
         for jugadora in datos_partido:
             nombre = jugadora["nombre"]
             
@@ -57,7 +40,6 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
                 acumulado_jugadoras[nombre]["puntos_totales"] += jugadora["puntos"]
                 acumulado_jugadoras[nombre]["eficiencia_total"] += jugadora["eficiencia"]
 
-    # Calculemos los promedios generales
     estadisticas_generales = []
     for jugadora in acumulado_jugadoras.values():
         pj = jugadora["partidos_jugados"]
