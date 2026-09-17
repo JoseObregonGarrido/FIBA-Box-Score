@@ -30,41 +30,55 @@ def extraer_datos_completos_tda(ruta_pdf):
     
     with pdfplumber.open(ruta_pdf) as pdf:
         pagina = pdf.pages[0]
-        texto_completo = pagina.extract_text().upper()
         tablas = pagina.extract_tables()
         
-        # 1. Determinamos si TDA es el Equipo 1 (Local) o Equipo 2 (Visitante)
-        # Analizamos el orden en el texto del encabezado
-        pos_tda = texto_completo.find("TECNOLOGICO")
-        if pos_tda == -1:
-            pos_tda = texto_completo.find("TDA")
-            
-        pos_vs = texto_completo.find(" VS ")
-        if pos_vs == -1:
-            pos_vs = texto_completo.find(" - ")
-
-        # Si TDA aparece antes del 'VS' o '-', es la primera tabla (índice 0). Si aparece después, es la segunda (índice 1).
-        indice_tabla_target = 0
-        if pos_tda != -1 and pos_vs != -1 and pos_tda > pos_vs:
-            indice_tabla_target = 1
-
-        # 2. Si no se puede determinar por encabezado, buscamos qué tabla contiene números de dorsal válidos
-        tablas_validas = []
-        for tabla in tablas:
-            filas_con_dorsal = 0
-            for fila in tabla:
+        # 1. Filtramos solo las tablas que contienen datos de jugadoras
+        tablas_roster = []
+        for t in tablas:
+            filas_validas = 0
+            for fila in t:
                 if fila and str(fila[0]).replace("*", "").strip().isdigit():
-                    filas_con_dorsal += 1
-            if filas_con_dorsal >= 5: # Es una tabla de roster de jugadoras
-                tablas_validas.append(tabla)
-
-        if not tablas_validas:
+                    filas_validas += 1
+            if filas_validas >= 3:
+                tablas_roster.append(t)
+                
+        if not tablas_roster:
             return []
 
-        # Seleccionamos la tabla target basada en la posición
-        tabla_tda = tablas_validas[min(indice_tabla_target, len(tablas_validas) - 1)]
+        # 2. Identificación precisa de la tabla de TDA
+        tabla_tda = None
 
-        # 3. Extraemos las estadísticas independientemente de los nombres
+        # Estrategia A: Buscar si la palabra TDA o TECNOLOGICO aparece dentro o justo en el encabezado de la tabla
+        for t in tablas_roster:
+            texto_t = " ".join([str(cell) for fila in t for cell in fila if cell]).upper()
+            if "TECNOLOGICO" in texto_t or "TECNOLÓGICO" in texto_t or "TDA" in texto_t:
+                tabla_tda = t
+                break
+
+        # Estrategia B: Si no aparece dentro de las celdas, analizar el orden de lectura en la página
+        if not tabla_tda:
+            texto_pagina = pagina.extract_text().upper()
+            
+            # Buscamos el bloque de texto general donde se mencionan los dos equipos
+            pos_tda = texto_pagina.find("TECNOLOGICO")
+            if pos_tda == -1:
+                pos_tda = texto_pagina.find("TDA")
+
+            # Buscamos la posición del rival común en el encabezado si TDA es visitante
+            # Si TDA aparece en la segunda mitad del encabezado principal, elegimos la 2ª tabla (índice 1)
+            indice = 0
+            lines = [linea.strip() for linea in texto_pagina.split("\n") if linea.strip()]
+            for linea in lines[:10]: # Analizar las primeras 10 líneas del reporte
+                if "TECNOLOGICO" in linea or "TDA" in linea:
+                    # Si el nombre del rival aparece antes en la misma línea del partido (ej: "MEDELLIN 44-52 TECNOLOGICO")
+                    partes = linea.split("TECNOLOGICO")[0] if "TECNOLOGICO" in linea else linea.split("TDA")[0]
+                    if any(char.isdigit() for char in partes): 
+                        indice = 1
+                    break
+
+            tabla_tda = tablas_roster[min(indice, len(tablas_roster) - 1)]
+
+        # 3. Extracción de estadísticas
         for fila in tabla_tda:
             fila_limpia = [str(e).strip() for e in fila if e is not None and str(e).strip() != ""]
             texto_fila = " ".join(fila_limpia).upper()
