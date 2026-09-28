@@ -29,10 +29,13 @@ def leer_interfaz():
 @app.post("/procesar-partidos/")
 async def procesar_partidos(files: List[UploadFile] = File(...)):
     acumulado = {}
+    desglose_por_jugadora = {}
     total_partidos = len(files)
 
     for file in files:
+        nombre_partido = file.filename.replace(".pdf", "").replace("Planilla estadística FIBA ", "").replace("FIBA Box Score ", "")
         ruta_temporal = os.path.join(UPLOAD_DIR, file.filename)
+        
         with open(ruta_temporal, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
@@ -40,28 +43,35 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
         
         for j in datos:
             dorsal = j["dorsal"]
+            nombre = j["nombre"]
             
+            # Inicializar acumulado general
             if dorsal not in acumulado:
                 acumulado[dorsal] = {
-                    "dorsal": dorsal, 
-                    "nombre": j["nombre"], 
-                    "pj": 0,
+                    "dorsal": dorsal, "nombre": nombre, "pj": 0,
                     "min": 0, "pts": 0, "fgm": 0, "fga": 0, "m2": 0, "a2": 0,
                     "m3": 0, "a3": 0, "ftm": 0, "fta": 0, "ro": 0, "rd": 0,
                     "rt": 0, "as": 0, "to": 0, "st": 0, "bs": 0, "pf": 0,
                     "fd": 0, "pm": 0, "ef": 0
                 }
+                desglose_por_jugadora[dorsal] = []
             else:
-                if len(j["nombre"]) > len(acumulado[dorsal]["nombre"]):
-                    acumulado[dorsal]["nombre"] = j["nombre"]
+                if len(nombre) > len(acumulado[dorsal]["nombre"]):
+                    acumulado[dorsal]["nombre"] = nombre
             
+            # Guardar el registro individual del partido para el desglose por pestañas
+            registro_partido = {"partido": nombre_partido, "dorsal": dorsal, "nombre": nombre}
+            registro_partido.update(j)
+            desglose_por_jugadora[dorsal].append(registro_partido)
+            
+            # Sumar al acumulado si jugó
             if j["jugo"]:
                 acumulado[dorsal]["pj"] += 1
                 for k in ["min", "pts", "fgm", "fga", "m2", "a2", "m3", "a3", "ftm", "fta", 
                           "ro", "rd", "rt", "as", "to", "st", "bs", "pf", "fd", "pm", "ef"]:
                     acumulado[dorsal][k] += j.get(k, 0)
 
-    res = []
+    res_general = []
     for dorsal in sorted(acumulado.keys(), key=lambda x: int(x) if x.isdigit() else 99):
         j = acumulado[dorsal]
         pj = j["pj"] if j["pj"] > 0 else 1
@@ -71,14 +81,10 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
         p3_pct = round((j["m3"] / j["a3"] * 100), 1) if j["a3"] > 0 else 0
         ft_pct = round((j["ftm"] / j["fta"] * 100), 1) if j["fta"] > 0 else 0
 
-        res.append({
-            "dorsal": j["dorsal"],
-            "nombre": j["nombre"],
-            "pj": j["pj"],
-            "min_tot": j["min"],
-            "min_prom": round(j["min"] / pj, 1),
-            "pts_tot": j["pts"],
-            "pts_prom": round(j["pts"] / pj, 1),
+        res_general.append({
+            "dorsal": j["dorsal"], "nombre": j["nombre"], "pj": j["pj"],
+            "min_tot": j["min"], "min_prom": round(j["min"] / pj, 1),
+            "pts_tot": j["pts"], "pts_prom": round(j["pts"] / pj, 1),
             "fgm": j["fgm"], "fga": j["fga"], "fg_pct": fg_pct,
             "m2": j["m2"], "a2": j["a2"], "p2_pct": p2_pct,
             "m3": j["m3"], "a3": j["a3"], "p3_pct": p3_pct,
@@ -89,10 +95,13 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
             "to_tot": j["to"], "to_prom": round(j["to"] / pj, 1),
             "st_tot": j["st"], "st_prom": round(j["st"] / pj, 1),
             "bs_tot": j["bs"], "bs_prom": round(j["bs"] / pj, 1),
-            "pf_tot": j["pf"],
-            "fd_tot": j["fd"],
+            "pf_tot": j["pf"], "fd_tot": j["fd"],
             "pm_tot": j["pm"], "pm_prom": round(j["pm"] / pj, 1),
             "ef_tot": j["ef"], "ef_prom": round(j["ef"] / pj, 1)
         })
 
-    return {"partidos_procesados": total_partidos, "jugadoras": res}
+    return {
+        "partidos_procesados": total_partidos, 
+        "jugadoras": res_general,
+        "desglose": desglose_por_jugadora
+    }

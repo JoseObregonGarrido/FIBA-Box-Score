@@ -182,6 +182,7 @@
 
 <script>
     let datosUltimoProcesamiento = [];
+    let desglosePartidos = {};
 
     function actualizarNombresArchivos() {
         const input = document.getElementById('pdfInput');
@@ -215,6 +216,7 @@
             const data = await res.json();
 
             datosUltimoProcesamiento = data.jugadoras;
+            desglosePartidos = data.desglose || {};
             document.getElementById('statusText').textContent = `✅ Éxito: Se procesaron ${data.partidos_procesados} partido(s) correctamente.`;
 
             // Renderizar Líderes
@@ -292,10 +294,10 @@
         }
 
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Estadísticas TDA');
 
-        // Configuración de las columnas
-        worksheet.columns = [
+        // --- 1. HOJA 1: RESUMEN GENERAL EQUIPO ---
+        const wsGeneral = workbook.addWorksheet('Resumen General TDA');
+        const colsGeneral = [
             { header: 'Dorsal', key: 'dorsal', width: 10 },
             { header: 'Jugadora', key: 'nombre', width: 25 },
             { header: 'PJ', key: 'pj', width: 8 },
@@ -303,64 +305,135 @@
             { header: 'Min Prom', key: 'min_prom', width: 10 },
             { header: 'PTS Tot', key: 'pts_tot', width: 10 },
             { header: 'PTS Prom', key: 'pts_prom', width: 10 },
-            { header: 'FGM', key: 'fgm', width: 8 },
-            { header: 'FGA', key: 'fga', width: 8 },
-            { header: 'FG%', key: 'fg_pct', width: 10 },
-            { header: '2PM', key: 'm2', width: 8 },
-            { header: '2PA', key: 'a2', width: 8 },
-            { header: '2P%', key: 'p2_pct', width: 10 },
-            { header: '3PM', key: 'm3', width: 8 },
-            { header: '3PA', key: 'a3', width: 8 },
-            { header: '3P%', key: 'p3_pct', width: 10 },
-            { header: 'FTM', key: 'ftm', width: 8 },
-            { header: 'FTA', key: 'fta', width: 8 },
-            { header: 'FT%', key: 'ft_pct', width: 10 },
-            { header: 'OR', key: 'ro', width: 8 },
-            { header: 'DR', key: 'rd', width: 8 },
-            { header: 'REB Tot', key: 'rt_tot', width: 10 },
-            { header: 'REB Prom', key: 'rt_prom', width: 10 },
-            { header: 'AS Tot', key: 'as_tot', width: 10 },
-            { header: 'AS Prom', key: 'as_prom', width: 10 },
-            { header: 'TO Tot', key: 'to_tot', width: 10 },
-            { header: 'TO Prom', key: 'to_prom', width: 10 },
-            { header: 'ST Tot', key: 'st_tot', width: 10 },
-            { header: 'ST Prom', key: 'st_prom', width: 10 },
-            { header: 'BS Tot', key: 'bs_tot', width: 10 },
-            { header: 'BS Prom', key: 'bs_prom', width: 10 },
-            { header: 'PF Tot', key: 'pf_tot', width: 10 },
-            { header: 'FD Tot', key: 'fd_tot', width: 10 },
-            { header: '+/- Tot', key: 'pm_tot', width: 10 },
-            { header: '+/- Prom', key: 'pm_prom', width: 10 },
-            { header: 'EF Tot', key: 'ef_tot', width: 10 },
-            { header: 'EF Prom', key: 'ef_prom', width: 10 }
+            { header: 'FGM', key: 'fgm', width: 8 }, { header: 'FGA', key: 'fga', width: 8 }, { header: 'FG%', key: 'fg_pct', width: 10 },
+            { header: '2PM', key: 'm2', width: 8 }, { header: '2PA', key: 'a2', width: 8 }, { header: '2P%', key: 'p2_pct', width: 10 },
+            { header: '3PM', key: 'm3', width: 8 }, { header: '3PA', key: 'a3', width: 8 }, { header: '3P%', key: 'p3_pct', width: 10 },
+            { header: 'FTM', key: 'ftm', width: 8 }, { header: 'FTA', key: 'fta', width: 8 }, { header: 'FT%', key: 'ft_pct', width: 10 },
+            { header: 'OR', key: 'ro', width: 8 }, { header: 'DR', key: 'rd', width: 8 },
+            { header: 'REB Tot', key: 'rt_tot', width: 10 }, { header: 'REB Prom', key: 'rt_prom', width: 10 },
+            { header: 'AS Tot', key: 'as_tot', width: 10 }, { header: 'AS Prom', key: 'as_prom', width: 10 },
+            { header: 'TO Tot', key: 'to_tot', width: 10 }, { header: 'TO Prom', key: 'to_prom', width: 10 },
+            { header: 'ST Tot', key: 'st_tot', width: 10 }, { header: 'ST Prom', key: 'st_prom', width: 10 },
+            { header: 'BS Tot', key: 'bs_tot', width: 10 }, { header: 'BS Prom', key: 'bs_prom', width: 10 },
+            { header: 'PF Tot', key: 'pf_tot', width: 10 }, { header: 'FD Tot', key: 'fd_tot', width: 10 },
+            { header: '+/- Tot', key: 'pm_tot', width: 10 }, { header: '+/- Prom', key: 'pm_prom', width: 10 },
+            { header: 'EF Tot', key: 'ef_tot', width: 10 }, { header: 'EF Prom', key: 'ef_prom', width: 10 }
         ];
 
-        // Insertar filas
-        datosUltimoProcesamiento.forEach(j => {
-            worksheet.addRow(j);
+        wsGeneral.columns = colsGeneral;
+        datosUltimoProcesamiento.forEach(j => wsGeneral.addRow(j));
+        estilarHojaExcel(wsGeneral);
+
+        // --- 2. PESTAÑAS INDIVIDUALES POR JUGADORA ---
+        datosUltimoProcesamiento.forEach(jugadora => {
+            const dorsal = jugadora.dorsal;
+            const nombreLimpio = String(jugadora.nombre || '')
+                .replace(/[\*\?\[\]\:\/\\\(c\)\(C\)]/g, "")
+                .trim();
+
+            const tabName = `#${dorsal} ${nombreLimpio}`.substring(0, 31);
+
+            const wsJugadora = workbook.addWorksheet(tabName);
+            wsJugadora.columns = [
+                { header: 'Partido / Oponente', key: 'partido', width: 35 },
+                { header: 'Minutos', key: 'min', width: 10 },
+                { header: 'PTS', key: 'pts', width: 8 },
+                { header: 'TC (M/A)', key: 'tc', width: 12 },
+                { header: '2P (M/A)', key: 't2', width: 12 },
+                { header: '3P (M/A)', key: 't3', width: 12 },
+                { header: 'TL (M/A)', key: 'tl', width: 12 },
+                { header: 'OR', key: 'ro', width: 8 },
+                { header: 'DR', key: 'rd', width: 8 },
+                { header: 'REB Tot', key: 'rt', width: 10 },
+                { header: 'AS', key: 'as', width: 8 },
+                { header: 'TO', key: 'to', width: 8 },
+                { header: 'ST', key: 'st', width: 8 },
+                { header: 'BS', key: 'bs', width: 8 },
+                { header: 'PF', key: 'pf', width: 8 },
+                { header: 'FD', key: 'fd', width: 8 },
+                { header: '+/-', key: 'pm', width: 8 },
+                { header: 'EF', key: 'ef', width: 10 }
+            ];
+
+            const partidosJugadora = desglosePartidos[dorsal] || [];
+
+            partidosJugadora.forEach(p => {
+                wsJugadora.addRow({
+                    partido: p.partido,
+                    min: p.jugo ? p.min : 'DNP',
+                    pts: p.pts,
+                    tc: `${p.fgm}/${p.fga}`,
+                    t2: `${p.m2}/${p.a2}`,
+                    t3: `${p.m3}/${p.a3}`,
+                    tl: `${p.ftm}/${p.fta}`,
+                    ro: p.ro,
+                    rd: p.rd,
+                    rt: p.rt,
+                    as: p.as,
+                    to: p.to,
+                    st: p.st,
+                    bs: p.bs,
+                    pf: p.pf,
+                    fd: p.fd,
+                    pm: p.pm,
+                    ef: p.ef
+                });
+            });
+
+            estilarHojaExcel(wsJugadora);
         });
 
-        // Estilar la Fila de Encabezados (Fila 1)
+        // Guardar y descargar el libro con todas las pestañas
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        saveAs(blob, 'Reporte_Estadistico_TDA_Por_Jugadora.xlsx');
+    }
+
+    function estilarHojaExcel(worksheet) {
         const headerRow = worksheet.getRow(1);
-        headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
+
+        headerRow.font = {
+            name: 'Arial',
+            size: 10,
+            bold: true,
+            color: { argb: 'FFFFFF' }
+        };
+
         headerRow.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: '00875A' } // Verde Institucional TDA
+            fgColor: { argb: '00875A' }
         };
-        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        headerRow.alignment = {
+            vertical: 'middle',
+            horizontal: 'center'
+        };
+
         headerRow.height = 25;
 
-        // Estilar las Celdas de Datos
         worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return; // Omitir la cabecera
+            if (rowNumber === 1) return;
 
-            row.alignment = { vertical: 'middle', horizontal: 'center' };
+            row.alignment = {
+                vertical: 'middle',
+                horizontal: 'center'
+            };
 
-            // Alineación a la izquierda para el nombre
-            row.getCell('nombre').alignment = { vertical: 'middle', horizontal: 'left' };
+            // Alinear nombres a la izquierda cuando exista esa columna.
+            if (worksheet.getColumn('nombre')) {
+                const nombreCell = row.getCell('nombre');
+                if (nombreCell) {
+                    nombreCell.alignment = {
+                        vertical: 'middle',
+                        horizontal: 'left'
+                    };
+                }
+            }
 
-            // Bordes suaves para todas las celdas
             row.eachCell(cell => {
                 cell.border = {
                     top: { style: 'thin', color: { argb: 'E2E8F0' } },
@@ -370,25 +443,26 @@
                 };
             });
 
-            // Resaltar Eficiencias Negativas (EF Tot y EF Prom)
-            const cellEfTot = row.getCell('ef_tot');
-            const cellEfProm = row.getCell('ef_prom');
+            // Resaltar eficiencias negativas en rojo.
+            const cellEfTot = worksheet.getColumn('ef_tot') ? row.getCell('ef_tot') : null;
+            const cellEf = worksheet.getColumn('ef') ? row.getCell('ef') : null;
+            const cellEfProm = worksheet.getColumn('ef_prom') ? row.getCell('ef_prom') : null;
 
-            if (cellEfTot.value < 0) {
-                cellEfTot.font = { color: { argb: 'DC2626' }, bold: true };
-                cellEfTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
-            }
+            [cellEfTot, cellEfProm, cellEf].forEach(cell => {
+                if (cell && typeof cell.value === 'number' && cell.value < 0) {
+                    cell.font = {
+                        color: { argb: 'DC2626' },
+                        bold: true
+                    };
 
-            if (cellEfProm.value < 0) {
-                cellEfProm.font = { color: { argb: 'DC2626' }, bold: true };
-                cellEfProm.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
-            }
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FEE2E2' }
+                    };
+                }
+            });
         });
-
-        // Generar archivo y descargar
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, 'Reporte_Estadistico_TDA_FIBA.xlsx');
     }
 </script>
 
