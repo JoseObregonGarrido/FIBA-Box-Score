@@ -215,12 +215,12 @@
             const res = await fetch('/procesar-partidos/', { method: 'POST', body: formData });
             const data = await res.json();
 
-            datosUltimoProcesamiento = data.jugadoras;
+            datosUltimoProcesamiento = data.jugadoras || [];
             desglosePartidos = data.desglose || {};
             document.getElementById('statusText').textContent = `✅ Éxito: Se procesaron ${data.partidos_procesados} partido(s) correctamente.`;
 
             // Renderizar Líderes
-            if (data.jugadoras.length > 0) {
+            if (data.jugadoras && data.jugadoras.length > 0) {
                 const topScorer = [...data.jugadoras].sort((a,b) => b.pts_tot - a.pts_tot)[0];
                 const topEf = [...data.jugadoras].sort((a,b) => b.ef_prom - a.ef_prom)[0];
 
@@ -284,6 +284,7 @@
             document.getElementById('tablaBody').innerHTML = html;
 
         } catch (err) {
+            console.error(err);
             document.getElementById('statusText').textContent = "❌ Error al procesar los archivos PDF.";
         }
     }
@@ -293,173 +294,144 @@
             return alert("No hay datos cargados para exportar.");
         }
 
-        const workbook = new ExcelJS.Workbook();
+        try {
+            const workbook = new ExcelJS.Workbook();
 
-        // --- 1. HOJA 1: RESUMEN GENERAL EQUIPO ---
-        const wsGeneral = workbook.addWorksheet('Resumen General TDA');
-        const colsGeneral = [
-            { header: 'Dorsal', key: 'dorsal', width: 10 },
-            { header: 'Jugadora', key: 'nombre', width: 25 },
-            { header: 'PJ', key: 'pj', width: 8 },
-            { header: 'Min Tot', key: 'min_tot', width: 10 },
-            { header: 'Min Prom', key: 'min_prom', width: 10 },
-            { header: 'PTS Tot', key: 'pts_tot', width: 10 },
-            { header: 'PTS Prom', key: 'pts_prom', width: 10 },
-            { header: 'FGM', key: 'fgm', width: 8 }, { header: 'FGA', key: 'fga', width: 8 }, { header: 'FG%', key: 'fg_pct', width: 10 },
-            { header: '2PM', key: 'm2', width: 8 }, { header: '2PA', key: 'a2', width: 8 }, { header: '2P%', key: 'p2_pct', width: 10 },
-            { header: '3PM', key: 'm3', width: 8 }, { header: '3PA', key: 'a3', width: 8 }, { header: '3P%', key: 'p3_pct', width: 10 },
-            { header: 'FTM', key: 'ftm', width: 8 }, { header: 'FTA', key: 'fta', width: 8 }, { header: 'FT%', key: 'ft_pct', width: 10 },
-            { header: 'OR', key: 'ro', width: 8 }, { header: 'DR', key: 'rd', width: 8 },
-            { header: 'REB Tot', key: 'rt_tot', width: 10 }, { header: 'REB Prom', key: 'rt_prom', width: 10 },
-            { header: 'AS Tot', key: 'as_tot', width: 10 }, { header: 'AS Prom', key: 'as_prom', width: 10 },
-            { header: 'TO Tot', key: 'to_tot', width: 10 }, { header: 'TO Prom', key: 'to_prom', width: 10 },
-            { header: 'ST Tot', key: 'st_tot', width: 10 }, { header: 'ST Prom', key: 'st_prom', width: 10 },
-            { header: 'BS Tot', key: 'bs_tot', width: 10 }, { header: 'BS Prom', key: 'bs_prom', width: 10 },
-            { header: 'PF Tot', key: 'pf_tot', width: 10 }, { header: 'FD Tot', key: 'fd_tot', width: 10 },
-            { header: '+/- Tot', key: 'pm_tot', width: 10 }, { header: '+/- Prom', key: 'pm_prom', width: 10 },
-            { header: 'EF Tot', key: 'ef_tot', width: 10 }, { header: 'EF Prom', key: 'ef_prom', width: 10 }
-        ];
-
-        wsGeneral.columns = colsGeneral;
-        datosUltimoProcesamiento.forEach(j => wsGeneral.addRow(j));
-        estilarHojaExcel(wsGeneral);
-
-        // --- 2. PESTAÑAS INDIVIDUALES POR JUGADORA ---
-        datosUltimoProcesamiento.forEach(jugadora => {
-            const dorsal = jugadora.dorsal;
-            const nombreLimpio = String(jugadora.nombre || '')
-                .replace(/[\*\?\[\]\:\/\\\(c\)\(C\)]/g, "")
-                .trim();
-
-            const tabName = `#${dorsal} ${nombreLimpio}`.substring(0, 31);
-
-            const wsJugadora = workbook.addWorksheet(tabName);
-            wsJugadora.columns = [
-                { header: 'Partido / Oponente', key: 'partido', width: 35 },
-                { header: 'Minutos', key: 'min', width: 10 },
-                { header: 'PTS', key: 'pts', width: 8 },
-                { header: 'TC (M/A)', key: 'tc', width: 12 },
-                { header: '2P (M/A)', key: 't2', width: 12 },
-                { header: '3P (M/A)', key: 't3', width: 12 },
-                { header: 'TL (M/A)', key: 'tl', width: 12 },
-                { header: 'OR', key: 'ro', width: 8 },
-                { header: 'DR', key: 'rd', width: 8 },
-                { header: 'REB Tot', key: 'rt', width: 10 },
-                { header: 'AS', key: 'as', width: 8 },
-                { header: 'TO', key: 'to', width: 8 },
-                { header: 'ST', key: 'st', width: 8 },
-                { header: 'BS', key: 'bs', width: 8 },
-                { header: 'PF', key: 'pf', width: 8 },
-                { header: 'FD', key: 'fd', width: 8 },
-                { header: '+/-', key: 'pm', width: 8 },
-                { header: 'EF', key: 'ef', width: 10 }
+            // --- 1. HOJA 1: RESUMEN GENERAL EQUIPO ---
+            const wsGeneral = workbook.addWorksheet('Resumen General TDA');
+            const colsGeneral = [
+                { header: 'Dorsal', key: 'dorsal', width: 10 },
+                { header: 'Jugadora', key: 'nombre', width: 25 },
+                { header: 'PJ', key: 'pj', width: 8 },
+                { header: 'Min Tot', key: 'min_tot', width: 10 },
+                { header: 'Min Prom', key: 'min_prom', width: 10 },
+                { header: 'PTS Tot', key: 'pts_tot', width: 10 },
+                { header: 'PTS Prom', key: 'pts_prom', width: 10 },
+                { header: 'FGM', key: 'fgm', width: 8 }, { header: 'FGA', key: 'fga', width: 8 }, { header: 'FG%', key: 'fg_pct', width: 10 },
+                { header: '2PM', key: 'm2', width: 8 }, { header: '2PA', key: 'a2', width: 8 }, { header: '2P%', key: 'p2_pct', width: 10 },
+                { header: '3PM', key: 'm3', width: 8 }, { header: '3PA', key: 'a3', width: 8 }, { header: '3P%', key: 'p3_pct', width: 10 },
+                { header: 'FTM', key: 'ftm', width: 8 }, { header: 'FTA', key: 'fta', width: 8 }, { header: 'FT%', key: 'ft_pct', width: 10 },
+                { header: 'OR', key: 'ro', width: 8 }, { header: 'DR', key: 'rd', width: 8 },
+                { header: 'REB Tot', key: 'rt_tot', width: 10 }, { header: 'REB Prom', key: 'rt_prom', width: 10 },
+                { header: 'AS Tot', key: 'as_tot', width: 10 }, { header: 'AS Prom', key: 'as_prom', width: 10 },
+                { header: 'TO Tot', key: 'to_tot', width: 10 }, { header: 'TO Prom', key: 'to_prom', width: 10 },
+                { header: 'ST Tot', key: 'st_tot', width: 10 }, { header: 'ST Prom', key: 'st_prom', width: 10 },
+                { header: 'BS Tot', key: 'bs_tot', width: 10 }, { header: 'BS Prom', key: 'bs_prom', width: 10 },
+                { header: 'PF Tot', key: 'pf_tot', width: 10 }, { header: 'FD Tot', key: 'fd_tot', width: 10 },
+                { header: '+/- Tot', key: 'pm_tot', width: 10 }, { header: '+/- Prom', key: 'pm_prom', width: 10 },
+                { header: 'EF Tot', key: 'ef_tot', width: 10 }, { header: 'EF Prom', key: 'ef_prom', width: 10 }
             ];
 
-            const partidosJugadora = desglosePartidos[dorsal] || [];
+            wsGeneral.columns = colsGeneral;
+            datosUltimoProcesamiento.forEach(j => wsGeneral.addRow(j));
+            estilarHojaExcel(wsGeneral, true);
 
-            partidosJugadora.forEach(p => {
-                wsJugadora.addRow({
-                    partido: p.partido,
-                    min: p.jugo ? p.min : 'DNP',
-                    pts: p.pts,
-                    tc: `${p.fgm}/${p.fga}`,
-                    t2: `${p.m2}/${p.a2}`,
-                    t3: `${p.m3}/${p.a3}`,
-                    tl: `${p.ftm}/${p.fta}`,
-                    ro: p.ro,
-                    rd: p.rd,
-                    rt: p.rt,
-                    as: p.as,
-                    to: p.to,
-                    st: p.st,
-                    bs: p.bs,
-                    pf: p.pf,
-                    fd: p.fd,
-                    pm: p.pm,
-                    ef: p.ef
+            // --- 2. PESTAÑAS INDIVIDUALES POR JUGADORA ---
+            datosUltimoProcesamiento.forEach(jugadora => {
+                const dorsal = jugadora.dorsal;
+                const nombreLimpio = String(jugadora.nombre || '')
+                    .replace(/[\*\?\[\]\:\/\\\(c\)\(C\)]/g, "")
+                    .trim();
+
+                const tabName = `#${dorsal} ${nombreLimpio}`.substring(0, 31);
+
+                const wsJugadora = workbook.addWorksheet(tabName);
+                wsJugadora.columns = [
+                    { header: 'Partido / Oponente', key: 'partido', width: 35 },
+                    { header: 'Minutos', key: 'min', width: 10 },
+                    { header: 'PTS', key: 'pts', width: 8 },
+                    { header: 'TC (M/A)', key: 'tc', width: 12 },
+                    { header: '2P (M/A)', key: 't2', width: 12 },
+                    { header: '3P (M/A)', key: 't3', width: 12 },
+                    { header: 'TL (M/A)', key: 'tl', width: 12 },
+                    { header: 'OR', key: 'ro', width: 8 },
+                    { header: 'DR', key: 'rd', width: 8 },
+                    { header: 'REB Tot', key: 'rt', width: 10 },
+                    { header: 'AS', key: 'as', width: 8 },
+                    { header: 'TO', key: 'to', width: 8 },
+                    { header: 'ST', key: 'st', width: 8 },
+                    { header: 'BS', key: 'bs', width: 8 },
+                    { header: 'PF', key: 'pf', width: 8 },
+                    { header: 'FD', key: 'fd', width: 8 },
+                    { header: '+/-', key: 'pm', width: 8 },
+                    { header: 'EF', key: 'ef', width: 10 }
+                ];
+
+                const partidosJugadora = desglosePartidos[dorsal] || [];
+
+                partidosJugadora.forEach(p => {
+                    wsJugadora.addRow({
+                        partido: p.partido,
+                        min: p.jugo ? p.min : 'DNP',
+                        pts: p.pts,
+                        tc: `${p.fgm}/${p.fga}`,
+                        t2: `${p.m2}/${p.a2}`,
+                        t3: `${p.m3}/${p.a3}`,
+                        tl: `${p.ftm}/${p.fta}`,
+                        ro: p.ro,
+                        rd: p.rd,
+                        rt: p.rt,
+                        as: p.as,
+                        to: p.to,
+                        st: p.st,
+                        bs: p.bs,
+                        pf: p.pf,
+                        fd: p.fd,
+                        pm: p.pm,
+                        ef: p.ef
+                    });
                 });
+
+                estilarHojaExcel(wsJugadora, false);
             });
 
-            estilarHojaExcel(wsJugadora);
-        });
+            // Guardar y descargar el libro con todas las pestañas
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
 
-        // Guardar y descargar el libro con todas las pestañas
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], {
-            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        });
-
-        saveAs(blob, 'Reporte_Estadistico_TDA_Por_Jugadora.xlsx');
+            saveAs(blob, 'Reporte_Estadistico_TDA_Por_Jugadora.xlsx');
+        } catch (error) {
+            console.error("Error al exportar a Excel:", error);
+            alert("Ocurrió un error al generar el archivo de Excel. Revisa la consola del navegador.");
+        }
     }
 
-    function estilarHojaExcel(worksheet) {
+    function estilarHojaExcel(worksheet, esHojaGeneral) {
         const headerRow = worksheet.getRow(1);
 
-        headerRow.font = {
-            name: 'Arial',
-            size: 10,
-            bold: true,
-            color: { argb: 'FFFFFF' }
-        };
-
-        headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '00875A' }
-        };
-
-        headerRow.alignment = {
-            vertical: 'middle',
-            horizontal: 'center'
-        };
-
+        headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '00875A' } };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
         headerRow.height = 25;
 
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1) return;
 
-            row.alignment = {
-                vertical: 'middle',
-                horizontal: 'center'
-            };
+            row.alignment = { vertical: 'middle', horizontal: 'center' };
 
-            // Alinear nombres a la izquierda cuando exista esa columna.
-            if (worksheet.getColumn('nombre')) {
-                const nombreCell = row.getCell('nombre');
-                if (nombreCell) {
-                    nombreCell.alignment = {
-                        vertical: 'middle',
-                        horizontal: 'left'
-                    };
-                }
+            // Alineación a la izquierda para el nombre/partido
+            const primeraCol = row.getCell(esHojaGeneral ? 2 : 1);
+            if (primeraCol) {
+                primeraCol.alignment = { vertical: 'middle', horizontal: 'left' };
             }
 
-            row.eachCell(cell => {
+            row.eachCell((cell, colNumber) => {
                 cell.border = {
                     top: { style: 'thin', color: { argb: 'E2E8F0' } },
                     left: { style: 'thin', color: { argb: 'E2E8F0' } },
                     bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
                     right: { style: 'thin', color: { argb: 'E2E8F0' } }
                 };
-            });
 
-            // Resaltar eficiencias negativas en rojo.
-            const cellEfTot = worksheet.getColumn('ef_tot') ? row.getCell('ef_tot') : null;
-            const cellEf = worksheet.getColumn('ef') ? row.getCell('ef') : null;
-            const cellEfProm = worksheet.getColumn('ef_prom') ? row.getCell('ef_prom') : null;
-
-            [cellEfTot, cellEfProm, cellEf].forEach(cell => {
-                if (cell && typeof cell.value === 'number' && cell.value < 0) {
-                    cell.font = {
-                        color: { argb: 'DC2626' },
-                        bold: true
-                    };
-
-                    cell.fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: 'FEE2E2' }
-                    };
+                // Formato para eficiencias negativas en rojo
+                if (typeof cell.value === 'number' && cell.value < 0) {
+                    // En hoja general las columnas EF Tot y EF Prom son la 36 y 37. En hoja individual la col EF es la 18.
+                    if ((esHojaGeneral && (colNumber === 36 || colNumber === 37)) || (!esHojaGeneral && colNumber === 18)) {
+                        cell.font = { color: { argb: 'DC2626' }, bold: true };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+                    }
                 }
             });
         });
