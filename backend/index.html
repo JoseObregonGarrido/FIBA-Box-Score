@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDA Analytics - FIBA Box Score Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- Librerías para generar Excel con estilos y soporte para descarga -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root {
             --tda-green: #00875a;
@@ -34,6 +31,12 @@
         .logo-section h1 span { color: var(--tda-accent); }
         .logo-section p { font-size: 13px; color: #94a3b8; margin-top: 4px; }
 
+        /* Navigation Tabs */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; }
+        .tab-btn { background: transparent; border: none; padding: 10px 20px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+        .tab-btn.active { background: var(--tda-green); color: white; }
+        .tab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         /* Upload Area */
         .upload-card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
         .upload-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
@@ -45,13 +48,9 @@
         .btn-process { background: var(--tda-green); color: white; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 135, 90, 0.25); }
         .btn-process:hover { background: var(--tda-green-hover); transform: translateY(-1px); }
 
-        .btn-excel { background: #16a34a; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; display: none; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); }
-        .btn-excel:hover { background: #15803d; transform: translateY(-1px); }
-
-        /* Status & Partidos */
         .status-box { margin-top: 15px; font-size: 13px; color: var(--text-muted); }
         .files-badge-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-        .file-badge { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .file-badge { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 
         /* Highlights Cards */
         .highlights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; display: none; }
@@ -62,9 +61,12 @@
         .highlight-card .sub { font-size: 12px; color: var(--tda-green); font-weight: 600; margin-top: 2px; }
 
         /* Main Table */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
         .table-container { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
         .table-scroll { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 2200px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1800px; font-size: 12px; }
         
         thead th { background: #f8fafc; color: var(--text-muted); font-weight: 700; text-align: center; padding: 12px 8px; border-bottom: 2px solid var(--border-color); text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; white-space: nowrap; }
         tbody td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--border-color); color: var(--text-main); white-space: nowrap; }
@@ -75,9 +77,21 @@
         .dorsal-tag { background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 12px; }
         .highlight-cell { font-weight: 800; color: var(--tda-green); }
         .badge-pj { background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
-
-        /* Estilo para eficiencias negativas */
         .ef-negativa { color: var(--danger-red) !important; font-weight: 800; background-color: var(--danger-bg); border-radius: 4px; padding: 2px 6px; }
+
+        /* Panel de Jugadoras Grid (Sin Fotos) */
+        .players-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .player-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .player-card:hover { border-color: var(--tda-green); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,135,90,0.12); }
+        .player-card .dorsal-num { font-size: 32px; font-weight: 800; color: var(--tda-green); margin-bottom: 5px; }
+        .player-card .player-title { font-size: 15px; font-weight: 700; color: var(--tda-dark); }
+        .player-card .player-stats-preview { font-size: 12px; color: var(--text-muted); margin-top: 8px; display: flex; justify-content: space-around; }
+
+        /* Modal o Contenedor de Detalle Individual */
+        .detail-box { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-top: 20px; display: none; }
+        .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .detail-header h2 { font-size: 20px; font-weight: 800; color: var(--tda-dark); }
+        .btn-close { background: #cbd5e1; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -100,7 +114,6 @@
             </label>
             <input type="file" id="pdfInput" multiple accept=".pdf" onchange="actualizarNombresArchivos()">
             <button class="btn-process" onclick="subirArchivos()">⚡ Procesar Partidos</button>
-            <button id="btnExportarExcel" class="btn-excel" onclick="exportarAExcelEstilizado()">📥 Descargar Excel Diseñado</button>
         </div>
 
         <div class="status-box">
@@ -109,73 +122,122 @@
         </div>
     </section>
 
-    <!-- Cards de Líderes -->
-    <div id="highlights" class="highlights-grid">
-        <div class="highlight-card">
-            <label>👑 Máxima Anotadora</label>
-            <div class="val" id="topScorerName">-</div>
-            <div class="sub" id="topScorerPts">-</div>
+    <!-- Botones de Navegación de Vistas -->
+    <div class="nav-tabs">
+        <button id="tabGeneral" class="tab-btn active" onclick="cambiarVista('general')">📊 Consolidado General</button>
+        <button id="tabPanel" class="tab-btn" onclick="cambiarVista('panel')" disabled>👤 Panel por Jugadora</button>
+    </div>
+
+    <!-- VISTA 1: TABLA ACUMULADA GENERAL -->
+    <div id="viewGeneral" class="view-section active">
+        <div id="highlights" class="highlights-grid">
+            <div class="highlight-card">
+                <label>👑 Máxima Anotadora</label>
+                <div class="val" id="topScorerName">-</div>
+                <div class="sub" id="topScorerPts">-</div>
+            </div>
+            <div class="highlight-card ef">
+                <label>⭐ Mayor Eficiencia Promedio</label>
+                <div class="val" id="topEfName">-</div>
+                <div class="sub" id="topEfVal" style="color: #3b82f6;">-</div>
+            </div>
         </div>
-        <div class="highlight-card ef">
-            <label>⭐ Mayor Eficiencia Promedio</label>
-            <div class="val" id="topEfName">-</div>
-            <div class="sub" id="topEfVal" style="color: #3b82f6;">-</div>
+
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dorsal</th>
+                            <th style="text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 2;">Jugadora</th>
+                            <th>PJ</th>
+                            <th>Min Tot</th>
+                            <th>Min Prom</th>
+                            <th>PTS Tot</th>
+                            <th>PTS Prom</th>
+                            <th>FGM</th>
+                            <th>FGA</th>
+                            <th>FG%</th>
+                            <th>2PM</th>
+                            <th>2PA</th>
+                            <th>2P%</th>
+                            <th>3PM</th>
+                            <th>3PA</th>
+                            <th>3P%</th>
+                            <th>FTM</th>
+                            <th>FTA</th>
+                            <th>FT%</th>
+                            <th>OR</th>
+                            <th>DR</th>
+                            <th>REB Tot</th>
+                            <th>REB Prom</th>
+                            <th>AS Tot</th>
+                            <th>AS Prom</th>
+                            <th>TO Tot</th>
+                            <th>TO Prom</th>
+                            <th>ST Tot</th>
+                            <th>ST Prom</th>
+                            <th>BS Tot</th>
+                            <th>BS Prom</th>
+                            <th>PF Tot</th>
+                            <th>FD Tot</th>
+                            <th>+/- Tot</th>
+                            <th>+/- Prom</th>
+                            <th>EF Tot</th>
+                            <th>EF Prom</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <tr>
+                            <td colspan="37" style="padding: 40px; color: var(--text-muted);">
+                                Esperando archivos... Sube los Box Scores para calcular los promedios.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Tabla Principal -->
-    <div class="table-container">
-        <div class="table-scroll">
-            <table id="tablaEstadisticas">
-                <thead>
-                    <tr>
-                        <th>Dorsal</th>
-                        <th style="text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 2;">Jugadora</th>
-                        <th>PJ</th>
-                        <th>Min Tot</th>
-                        <th>Min Prom</th>
-                        <th>PTS Tot</th>
-                        <th>PTS Prom</th>
-                        <th>FGM</th>
-                        <th>FGA</th>
-                        <th>FG%</th>
-                        <th>2PM</th>
-                        <th>2PA</th>
-                        <th>2P%</th>
-                        <th>3PM</th>
-                        <th>3PA</th>
-                        <th>3P%</th>
-                        <th>FTM</th>
-                        <th>FTA</th>
-                        <th>FT%</th>
-                        <th>OR</th>
-                        <th>DR</th>
-                        <th>REB Tot</th>
-                        <th>REB Prom</th>
-                        <th>AS Tot</th>
-                        <th>AS Prom</th>
-                        <th>TO Tot</th>
-                        <th>TO Prom</th>
-                        <th>ST Tot</th>
-                        <th>ST Prom</th>
-                        <th>BS Tot</th>
-                        <th>BS Prom</th>
-                        <th>PF Tot</th>
-                        <th>FD Tot</th>
-                        <th>+/- Tot</th>
-                        <th>+/- Prom</th>
-                        <th>EF Tot</th>
-                        <th>EF Prom</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaBody">
-                    <tr>
-                        <td colspan="37" style="padding: 40px; color: var(--text-muted);">
-                            Esperando archivos... Sube los Box Scores para calcular los promedios.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+    <!-- VISTA 2: PANEL DE TARJETAS POR JUGADORA -->
+    <div id="viewPanel" class="view-section">
+        <div id="gridJugadoras" class="players-grid"></div>
+
+        <!-- Detalle Desglosado de la Jugadora Seleccionada -->
+        <div id="boxDetalleJugadora" class="detail-box">
+            <div class="detail-header">
+                <h2 id="tituloDetalleJugadora">Historial de Partido por Partido</h2>
+                <button class="btn-close" onclick="cerrarDetalle()">✕ Cerrar</button>
+            </div>
+            <div class="table-container">
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Partido / Oponente</th>
+                                <th>Minutos</th>
+                                <th>PTS</th>
+                                <th>TC (M/A)</th>
+                                <th>2P (M/A)</th>
+                                <th>3P (M/A)</th>
+                                <th>TL (M/A)</th>
+                                <th>OR</th>
+                                <th>DR</th>
+                                <th>REB Tot</th>
+                                <th>AS</th>
+                                <th>TO</th>
+                                <th>ST</th>
+                                <th>BS</th>
+                                <th>PF</th>
+                                <th>FD</th>
+                                <th>+/-</th>
+                                <th>EF</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyDetalleJugadora"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -183,6 +245,21 @@
 <script>
     let datosUltimoProcesamiento = [];
     let desglosePartidos = {};
+
+    function cambiarVista(vista) {
+        document.getElementById('viewGeneral').classList.remove('active');
+        document.getElementById('viewPanel').classList.remove('active');
+        document.getElementById('tabGeneral').classList.remove('active');
+        document.getElementById('tabPanel').classList.remove('active');
+
+        if (vista === 'general') {
+            document.getElementById('viewGeneral').classList.add('active');
+            document.getElementById('tabGeneral').classList.add('active');
+        } else {
+            document.getElementById('viewPanel').classList.add('active');
+            document.getElementById('tabPanel').classList.add('active');
+        }
+    }
 
     function actualizarNombresArchivos() {
         const input = document.getElementById('pdfInput');
@@ -219,6 +296,8 @@
             desglosePartidos = data.desglose || {};
             document.getElementById('statusText').textContent = `✅ Éxito: Se procesaron ${data.partidos_procesados} partido(s) correctamente.`;
 
+            document.getElementById('tabPanel').disabled = false;
+
             // Renderizar Líderes
             if (data.jugadoras && data.jugadoras.length > 0) {
                 const topScorer = [...data.jugadoras].sort((a,b) => b.pts_tot - a.pts_tot)[0];
@@ -231,16 +310,15 @@
                 document.getElementById('topEfVal').textContent = `${topEf.ef_prom} de eficiencia promedio`;
 
                 document.getElementById('highlights').style.display = 'grid';
-                document.getElementById('btnExportarExcel').style.display = 'inline-flex';
             }
 
-            // Renderizar Tabla
-            let html = '';
+            // Renderizar Tabla General
+            let htmlTabla = '';
             data.jugadoras.forEach(j => {
                 const efTotClass = j.ef_tot < 0 ? 'ef-negativa' : 'highlight-cell';
                 const efPromClass = j.ef_prom < 0 ? 'ef-negativa' : '';
 
-                html += `<tr>
+                htmlTabla += `<tr>
                     <td><span class="dorsal-tag">${j.dorsal}</span></td>
                     <td class="player-name">${j.nombre}</td>
                     <td><span class="badge-pj">${j.pj}</span></td>
@@ -280,8 +358,22 @@
                     <td><span class="${efPromClass}">${j.ef_prom}</span></td>
                 </tr>`;
             });
+            document.getElementById('tablaBody').innerHTML = htmlTabla;
 
-            document.getElementById('tablaBody').innerHTML = html;
+            // Renderizar Tarjetas de Jugadoras (Modo Panel)
+            let htmlGrid = '';
+            data.jugadoras.forEach(j => {
+                htmlGrid += `<div class="player-card" onclick="verDetalleJugadora('${j.dorsal}', '${j.nombre.replace(/'/g, "\\'")}')">
+                    <div class="dorsal-num">#${j.dorsal}</div>
+                    <div class="player-title">${j.nombre}</div>
+                    <div class="player-stats-preview">
+                        <span><b>${j.pts_prom}</b> PPP</span>
+                        <span><b>${j.rt_prom}</b> RPP</span>
+                        <span><b>${j.ef_prom}</b> EF</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('gridJugadoras').innerHTML = htmlGrid;
 
         } catch (err) {
             console.error(err);
@@ -289,152 +381,44 @@
         }
     }
 
-    async function exportarAExcelEstilizado() {
-        if (!datosUltimoProcesamiento || datosUltimoProcesamiento.length === 0) {
-            return alert("No hay datos cargados para exportar.");
-        }
+    function verDetalleJugadora(dorsal, nombre) {
+        document.getElementById('tituloDetalleJugadora').textContent = `#${dorsal} ${nombre} - Rendimiento Partido a Partido`;
+        const partidos = desglosePartidos[dorsal] || [];
 
-        try {
-            const workbook = new ExcelJS.Workbook();
+        let htmlRows = '';
+        partidos.forEach(p => {
+            const efClass = p.ef < 0 ? 'ef-negativa' : '';
+            htmlRows += `<tr>
+                <td style="text-align: left; font-weight: 700;">${p.partido}</td>
+                <td>${p.jugo ? p.min + ' min' : '<span style="color:#94a3b8">DNP</span>'}</td>
+                <td class="highlight-cell">${p.pts}</td>
+                <td>${p.fgm}/${p.fga}</td>
+                <td>${p.m2}/${p.a2}</td>
+                <td>${p.m3}/${p.a3}</td>
+                <td>${p.ftm}/${p.fta}</td>
+                <td>${p.ro}</td>
+                <td>${p.rd}</td>
+                <td><b>${p.rt}</b></td>
+                <td><b>${p.as}</b></td>
+                <td>${p.to}</td>
+                <td>${p.st}</td>
+                <td>${p.bs}</td>
+                <td>${p.pf}</td>
+                <td>${p.fd}</td>
+                <td>${p.pm}</td>
+                <td><span class="${efClass}">${p.ef}</span></td>
+            </tr>`;
+        });
 
-            // --- 1. HOJA 1: RESUMEN GENERAL EQUIPO ---
-            const wsGeneral = workbook.addWorksheet('Resumen General TDA');
-            const colsGeneral = [
-                { header: 'Dorsal', key: 'dorsal', width: 10 },
-                { header: 'Jugadora', key: 'nombre', width: 25 },
-                { header: 'PJ', key: 'pj', width: 8 },
-                { header: 'Min Tot', key: 'min_tot', width: 10 },
-                { header: 'Min Prom', key: 'min_prom', width: 10 },
-                { header: 'PTS Tot', key: 'pts_tot', width: 10 },
-                { header: 'PTS Prom', key: 'pts_prom', width: 10 },
-                { header: 'FGM', key: 'fgm', width: 8 }, { header: 'FGA', key: 'fga', width: 8 }, { header: 'FG%', key: 'fg_pct', width: 10 },
-                { header: '2PM', key: 'm2', width: 8 }, { header: '2PA', key: 'a2', width: 8 }, { header: '2P%', key: 'p2_pct', width: 10 },
-                { header: '3PM', key: 'm3', width: 8 }, { header: '3PA', key: 'a3', width: 8 }, { header: '3P%', key: 'p3_pct', width: 10 },
-                { header: 'FTM', key: 'ftm', width: 8 }, { header: 'FTA', key: 'fta', width: 8 }, { header: 'FT%', key: 'ft_pct', width: 10 },
-                { header: 'OR', key: 'ro', width: 8 }, { header: 'DR', key: 'rd', width: 8 },
-                { header: 'REB Tot', key: 'rt_tot', width: 10 }, { header: 'REB Prom', key: 'rt_prom', width: 10 },
-                { header: 'AS Tot', key: 'as_tot', width: 10 }, { header: 'AS Prom', key: 'as_prom', width: 10 },
-                { header: 'TO Tot', key: 'to_tot', width: 10 }, { header: 'TO Prom', key: 'to_prom', width: 10 },
-                { header: 'ST Tot', key: 'st_tot', width: 10 }, { header: 'ST Prom', key: 'st_prom', width: 10 },
-                { header: 'BS Tot', key: 'bs_tot', width: 10 }, { header: 'BS Prom', key: 'bs_prom', width: 10 },
-                { header: 'PF Tot', key: 'pf_tot', width: 10 }, { header: 'FD Tot', key: 'fd_tot', width: 10 },
-                { header: '+/- Tot', key: 'pm_tot', width: 10 }, { header: '+/- Prom', key: 'pm_prom', width: 10 },
-                { header: 'EF Tot', key: 'ef_tot', width: 10 }, { header: 'EF Prom', key: 'ef_prom', width: 10 }
-            ];
+        document.getElementById('bodyDetalleJugadora').innerHTML = htmlRows;
+        document.getElementById('boxDetalleJugadora').style.display = 'block';
 
-            wsGeneral.columns = colsGeneral;
-            datosUltimoProcesamiento.forEach(j => wsGeneral.addRow(j));
-            estilarHojaExcel(wsGeneral, true);
-
-            // --- 2. PESTAÑAS INDIVIDUALES POR JUGADORA ---
-            datosUltimoProcesamiento.forEach(jugadora => {
-                const dorsal = jugadora.dorsal;
-                const nombreLimpio = String(jugadora.nombre || '')
-                    .replace(/[\*\?\[\]\:\/\\\(c\)\(C\)]/g, "")
-                    .trim();
-
-                const tabName = `#${dorsal} ${nombreLimpio}`.substring(0, 31);
-
-                const wsJugadora = workbook.addWorksheet(tabName);
-                wsJugadora.columns = [
-                    { header: 'Partido / Oponente', key: 'partido', width: 35 },
-                    { header: 'Minutos', key: 'min', width: 10 },
-                    { header: 'PTS', key: 'pts', width: 8 },
-                    { header: 'TC (M/A)', key: 'tc', width: 12 },
-                    { header: '2P (M/A)', key: 't2', width: 12 },
-                    { header: '3P (M/A)', key: 't3', width: 12 },
-                    { header: 'TL (M/A)', key: 'tl', width: 12 },
-                    { header: 'OR', key: 'ro', width: 8 },
-                    { header: 'DR', key: 'rd', width: 8 },
-                    { header: 'REB Tot', key: 'rt', width: 10 },
-                    { header: 'AS', key: 'as', width: 8 },
-                    { header: 'TO', key: 'to', width: 8 },
-                    { header: 'ST', key: 'st', width: 8 },
-                    { header: 'BS', key: 'bs', width: 8 },
-                    { header: 'PF', key: 'pf', width: 8 },
-                    { header: 'FD', key: 'fd', width: 8 },
-                    { header: '+/-', key: 'pm', width: 8 },
-                    { header: 'EF', key: 'ef', width: 10 }
-                ];
-
-                const partidosJugadora = desglosePartidos[dorsal] || [];
-
-                partidosJugadora.forEach(p => {
-                    wsJugadora.addRow({
-                        partido: p.partido,
-                        min: p.jugo ? p.min : 'DNP',
-                        pts: p.pts,
-                        tc: `${p.fgm}/${p.fga}`,
-                        t2: `${p.m2}/${p.a2}`,
-                        t3: `${p.m3}/${p.a3}`,
-                        tl: `${p.ftm}/${p.fta}`,
-                        ro: p.ro,
-                        rd: p.rd,
-                        rt: p.rt,
-                        as: p.as,
-                        to: p.to,
-                        st: p.st,
-                        bs: p.bs,
-                        pf: p.pf,
-                        fd: p.fd,
-                        pm: p.pm,
-                        ef: p.ef
-                    });
-                });
-
-                estilarHojaExcel(wsJugadora, false);
-            });
-
-            // Guardar y descargar el libro con todas las pestañas
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-
-            saveAs(blob, 'Reporte_Estadistico_TDA_Por_Jugadora.xlsx');
-        } catch (error) {
-            console.error("Error al exportar a Excel:", error);
-            alert("Ocurrió un error al generar el archivo de Excel. Revisa la consola del navegador.");
-        }
+        // Desplazarse suavemente hacia la tabla de detalle
+        document.getElementById('boxDetalleJugadora').scrollIntoView({ behavior: 'smooth' });
     }
 
-    function estilarHojaExcel(worksheet, esHojaGeneral) {
-        const headerRow = worksheet.getRow(1);
-
-        headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
-        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '00875A' } };
-        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-        headerRow.height = 25;
-
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return;
-
-            row.alignment = { vertical: 'middle', horizontal: 'center' };
-
-            // Alineación a la izquierda para el nombre/partido
-            const primeraCol = row.getCell(esHojaGeneral ? 2 : 1);
-            if (primeraCol) {
-                primeraCol.alignment = { vertical: 'middle', horizontal: 'left' };
-            }
-
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin', color: { argb: 'E2E8F0' } },
-                    left: { style: 'thin', color: { argb: 'E2E8F0' } },
-                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
-                    right: { style: 'thin', color: { argb: 'E2E8F0' } }
-                };
-
-                // Formato para eficiencias negativas en rojo
-                if (typeof cell.value === 'number' && cell.value < 0) {
-                    // En hoja general las columnas EF Tot y EF Prom son la 36 y 37. En hoja individual la col EF es la 18.
-                    if ((esHojaGeneral && (colNumber === 36 || colNumber === 37)) || (!esHojaGeneral && colNumber === 18)) {
-                        cell.font = { color: { argb: 'DC2626' }, bold: true };
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
-                    }
-                }
-            });
-        });
+    function cerrarDetalle() {
+        document.getElementById('boxDetalleJugadora').style.display = 'none';
     }
 </script>
 

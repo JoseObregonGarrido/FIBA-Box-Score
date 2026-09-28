@@ -45,7 +45,6 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
             dorsal = j["dorsal"]
             nombre = j["nombre"]
             
-            # Inicializar acumulado general
             if dorsal not in acumulado:
                 acumulado[dorsal] = {
                     "dorsal": dorsal, "nombre": nombre, "pj": 0,
@@ -59,12 +58,10 @@ async def procesar_partidos(files: List[UploadFile] = File(...)):
                 if len(nombre) > len(acumulado[dorsal]["nombre"]):
                     acumulado[dorsal]["nombre"] = nombre
             
-            # Guardar el registro individual del partido para el desglose por pestañas
             registro_partido = {"partido": nombre_partido, "dorsal": dorsal, "nombre": nombre}
             registro_partido.update(j)
             desglose_por_jugadora[dorsal].append(registro_partido)
             
-            # Sumar al acumulado si jugó
             if j["jugo"]:
                 acumulado[dorsal]["pj"] += 1
                 for k in ["min", "pts", "fgm", "fga", "m2", "a2", "m3", "a3", "ftm", "fta", 
