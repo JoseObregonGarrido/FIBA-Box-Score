@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDA Analytics - FIBA Box Score Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Librerías para generar Excel con estilos y soporte para descarga -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root {
             --tda-green: #00875a;
@@ -39,14 +42,20 @@
 
         /* Upload Area */
         .upload-card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .upload-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .upload-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
         
         input[type="file"] { display: none; }
         .custom-file-btn { background: #f1f5f9; border: 2px dashed #cbd5e1; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text-main); transition: all 0.2s; }
         .custom-file-btn:hover { background: #e2e8f0; border-color: var(--tda-green); }
         
-        .btn-process { background: var(--tda-green); color: white; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 135, 90, 0.25); }
+        .btn-process { background: var(--tda-green); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 135, 90, 0.25); }
         .btn-process:hover { background: var(--tda-green-hover); transform: translateY(-1px); }
+
+        .btn-excel-simple { background: #0284c7; color: white; border: none; padding: 12px 18px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 13px; transition: all 0.2s; display: none; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25); }
+        .btn-excel-simple:hover { background: #0369a1; transform: translateY(-1px); }
+
+        .btn-excel-full { background: #16a34a; color: white; border: none; padding: 12px 18px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 13px; transition: all 0.2s; display: none; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); }
+        .btn-excel-full:hover { background: #15803d; transform: translateY(-1px); }
 
         .status-box { margin-top: 15px; font-size: 13px; color: var(--text-muted); }
         .files-badge-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
@@ -79,7 +88,7 @@
         .badge-pj { background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
         .ef-negativa { color: var(--danger-red) !important; font-weight: 800; background-color: var(--danger-bg); border-radius: 4px; padding: 2px 6px; }
 
-        /* Panel de Jugadoras Grid (Sin Fotos) */
+        /* Panel de Jugadoras Grid */
         .players-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
         .player-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .player-card:hover { border-color: var(--tda-green); transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,135,90,0.12); }
@@ -87,7 +96,7 @@
         .player-card .player-title { font-size: 15px; font-weight: 700; color: var(--tda-dark); }
         .player-card .player-stats-preview { font-size: 12px; color: var(--text-muted); margin-top: 8px; display: flex; justify-content: space-around; }
 
-        /* Modal o Contenedor de Detalle Individual */
+        /* Contenedor de Detalle Individual */
         .detail-box { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-top: 20px; display: none; }
         .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .detail-header h2 { font-size: 20px; font-weight: 800; color: var(--tda-dark); }
@@ -114,6 +123,8 @@
             </label>
             <input type="file" id="pdfInput" multiple accept=".pdf" onchange="actualizarNombresArchivos()">
             <button class="btn-process" onclick="subirArchivos()">⚡ Procesar Partidos</button>
+            <button id="btnExcelSimple" class="btn-excel-simple" onclick="exportarExcel(false)">📊 Excel Consolidado</button>
+            <button id="btnExcelFull" class="btn-excel-full" onclick="exportarExcel(true)">📑 Excel con Pestañas por Jugadora</button>
         </div>
 
         <div class="status-box">
@@ -122,7 +133,7 @@
         </div>
     </section>
 
-    <!-- Botones de Navegación de Vistas -->
+    <!-- Botones de Navegación de Vistas Web -->
     <div class="nav-tabs">
         <button id="tabGeneral" class="tab-btn active" onclick="cambiarVista('general')">📊 Consolidado General</button>
         <button id="tabPanel" class="tab-btn" onclick="cambiarVista('panel')" disabled>👤 Panel por Jugadora</button>
@@ -297,6 +308,8 @@
             document.getElementById('statusText').textContent = `✅ Éxito: Se procesaron ${data.partidos_procesados} partido(s) correctamente.`;
 
             document.getElementById('tabPanel').disabled = false;
+            document.getElementById('btnExcelSimple').style.display = 'inline-flex';
+            document.getElementById('btnExcelFull').style.display = 'inline-flex';
 
             // Renderizar Líderes
             if (data.jugadoras && data.jugadoras.length > 0) {
@@ -412,13 +425,147 @@
 
         document.getElementById('bodyDetalleJugadora').innerHTML = htmlRows;
         document.getElementById('boxDetalleJugadora').style.display = 'block';
-
-        // Desplazarse suavemente hacia la tabla de detalle
         document.getElementById('boxDetalleJugadora').scrollIntoView({ behavior: 'smooth' });
     }
 
     function cerrarDetalle() {
         document.getElementById('boxDetalleJugadora').style.display = 'none';
+    }
+
+    async function exportarExcel(incluirPestañasIndividuales) {
+        if (!datosUltimoProcesamiento || datosUltimoProcesamiento.length === 0) {
+            return alert("No hay datos cargados para exportar.");
+        }
+
+        try {
+            const workbook = new ExcelJS.Workbook();
+
+            // --- HOJA 1: RESUMEN GENERAL EQUIPO ---
+            const wsGeneral = workbook.addWorksheet('Resumen General TDA');
+            wsGeneral.columns = [
+                { header: 'Dorsal', key: 'dorsal', width: 10 },
+                { header: 'Jugadora', key: 'nombre', width: 25 },
+                { header: 'PJ', key: 'pj', width: 8 },
+                { header: 'Min Tot', key: 'min_tot', width: 10 },
+                { header: 'Min Prom', key: 'min_prom', width: 10 },
+                { header: 'PTS Tot', key: 'pts_tot', width: 10 },
+                { header: 'PTS Prom', key: 'pts_prom', width: 10 },
+                { header: 'FGM', key: 'fgm', width: 8 }, { header: 'FGA', key: 'fga', width: 8 }, { header: 'FG%', key: 'fg_pct', width: 10 },
+                { header: '2PM', key: 'm2', width: 8 }, { header: '2PA', key: 'a2', width: 8 }, { header: '2P%', key: 'p2_pct', width: 10 },
+                { header: '3PM', key: 'm3', width: 8 }, { header: '3PA', key: 'a3', width: 8 }, { header: '3P%', key: 'p3_pct', width: 10 },
+                { header: 'FTM', key: 'ftm', width: 8 }, { header: 'FTA', key: 'fta', width: 8 }, { header: 'FT%', key: 'ft_pct', width: 10 },
+                { header: 'OR', key: 'ro', width: 8 }, { header: 'DR', key: 'rd', width: 8 },
+                { header: 'REB Tot', key: 'rt_tot', width: 10 }, { header: 'REB Prom', key: 'rt_prom', width: 10 },
+                { header: 'AS Tot', key: 'as_tot', width: 10 }, { header: 'AS Prom', key: 'as_prom', width: 10 },
+                { header: 'TO Tot', key: 'to_tot', width: 10 }, { header: 'TO Prom', key: 'to_prom', width: 10 },
+                { header: 'ST Tot', key: 'st_tot', width: 10 }, { header: 'ST Prom', key: 'st_prom', width: 10 },
+                { header: 'BS Tot', key: 'bs_tot', width: 10 }, { header: 'BS Prom', key: 'bs_prom', width: 10 },
+                { header: 'PF Tot', key: 'pf_tot', width: 10 }, { header: 'FD Tot', key: 'fd_tot', width: 10 },
+                { header: '+/- Tot', key: 'pm_tot', width: 10 }, { header: '+/- Prom', key: 'pm_prom', width: 10 },
+                { header: 'EF Tot', key: 'ef_tot', width: 10 }, { header: 'EF Prom', key: 'ef_prom', width: 10 }
+            ];
+
+            datosUltimoProcesamiento.forEach(j => wsGeneral.addRow(j));
+            estilarHojaExcel(wsGeneral, true);
+
+            // --- PESTAÑAS INDIVIDUALES SI SE REQUIEREN ---
+            if (incluirPestañasIndividuales) {
+                datosUltimoProcesamiento.forEach(jugadora => {
+                    const dorsal = jugadora.dorsal;
+                    const nombreLimpio = String(jugadora.nombre || '')
+                        .replace(/[\*\?\[\]\:\/\\\(c\)\(C\)]/g, "")
+                        .trim();
+
+                    const tabName = `#${dorsal} ${nombreLimpio}`.substring(0, 31);
+                    const wsJugadora = workbook.addWorksheet(tabName);
+
+                    wsJugadora.columns = [
+                        { header: 'Partido / Oponente', key: 'partido', width: 35 },
+                        { header: 'Minutos', key: 'min', width: 10 },
+                        { header: 'PTS', key: 'pts', width: 8 },
+                        { header: 'TC (M/A)', key: 'tc', width: 12 },
+                        { header: '2P (M/A)', key: 't2', width: 12 },
+                        { header: '3P (M/A)', key: 't3', width: 12 },
+                        { header: 'TL (M/A)', key: 'tl', width: 12 },
+                        { header: 'OR', key: 'ro', width: 8 },
+                        { header: 'DR', key: 'rd', width: 8 },
+                        { header: 'REB Tot', key: 'rt', width: 10 },
+                        { header: 'AS', key: 'as', width: 8 },
+                        { header: 'TO', key: 'to', width: 8 },
+                        { header: 'ST', key: 'st', width: 8 },
+                        { header: 'BS', key: 'bs', width: 8 },
+                        { header: 'PF', key: 'pf', width: 8 },
+                        { header: 'FD', key: 'fd', width: 8 },
+                        { header: '+/-', key: 'pm', width: 8 },
+                        { header: 'EF', key: 'ef', width: 10 }
+                    ];
+
+                    const partidosJugadora = desglosePartidos[dorsal] || [];
+                    partidosJugadora.forEach(p => {
+                        wsJugadora.addRow({
+                            partido: p.partido,
+                            min: p.jugo ? p.min : 'DNP',
+                            pts: p.pts,
+                            tc: `${p.fgm}/${p.fga}`,
+                            t2: `${p.m2}/${p.a2}`,
+                            t3: `${p.m3}/${p.a3}`,
+                            tl: `${p.ftm}/${p.fta}`,
+                            ro: p.ro, rd: p.rd, rt: p.rt,
+                            as: p.as, to: p.to, st: p.st, bs: p.bs,
+                            pf: p.pf, fd: p.fd, pm: p.pm, ef: p.ef
+                        });
+                    });
+
+                    estilarHojaExcel(wsJugadora, false);
+                });
+            }
+
+            const nombreArchivo = incluirPestañasIndividuales 
+                ? 'Reporte_Estadistico_TDA_Con_Pestañas.xlsx' 
+                : 'Consolidado_General_TDA.xlsx';
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, nombreArchivo);
+
+        } catch (error) {
+            console.error("Error al exportar a Excel:", error);
+            alert("Ocurrió un error al generar el archivo de Excel.");
+        }
+    }
+
+    function estilarHojaExcel(worksheet, esHojaGeneral) {
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '00875A' } };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        headerRow.height = 25;
+
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            row.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            const primeraCol = row.getCell(esHojaGeneral ? 2 : 1);
+            if (primeraCol) {
+                primeraCol.alignment = { vertical: 'middle', horizontal: 'left' };
+            }
+
+            row.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'E2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'E2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'E2E8F0' } }
+                };
+
+                if (typeof cell.value === 'number' && cell.value < 0) {
+                    if ((esHojaGeneral && (colNumber === 36 || colNumber === 37)) || (!esHojaGeneral && colNumber === 18)) {
+                        cell.font = { color: { argb: 'DC2626' }, bold: true };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+                    }
+                }
+            });
+        });
     }
 </script>
 
